@@ -11,7 +11,7 @@ export default async function AdminSuggestionsPage() {
         redirect('/');
     }
 
-    const suggestions = await prisma.topicSuggestion.findMany({
+    const suggestions = await (prisma as any).topicSuggestion.findMany({
         include: {
             user: true,
         },

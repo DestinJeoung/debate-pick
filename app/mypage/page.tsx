@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import SuggestionForm from './SuggestionForm';
 
-export const dynamic = 'force_dynamic';
+export const dynamic = 'force-dynamic';
 
 export default async function MyPage() {
     const session = await getSession();
@@ -62,12 +62,12 @@ export default async function MyPage() {
                             fontSize: '2rem',
                             fontWeight: 'bold'
                         }}>
-                            {user.nickname[0]}
+                            {user.nickname ? user.nickname[0] : '?'}
                         </div>
                         <h2 style={{ marginBottom: '0.5rem' }}>{user.nickname}</h2>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>{user.email}</p>
-                        <div style={{ padding: '0.5rem', borderRadius: '4px', background: user.role === 'ADMIN' ? 'var(--accent-pros)' : 'var(--border-color)', fontSize: '0.8rem', display: 'inline-block' }}>
-                            {user.role}
+                        <div style={{ padding: '0.5rem', borderRadius: '4px', background: (user as any).role === 'ADMIN' ? 'var(--accent-pros)' : 'var(--border-color)', fontSize: '0.8rem', display: 'inline-block' }}>
+                            {(user as any).role}
                         </div>
                     </div>
 
@@ -75,15 +75,15 @@ export default async function MyPage() {
                         <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>활동 요약</h3>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                             <span>작성한 의견</span>
-                            <span style={{ fontWeight: 'bold' }}>{user._count.opinions}</span>
+                            <span style={{ fontWeight: 'bold' }}>{(user as any)._count?.opinions || 0}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                             <span>받은 좋아요</span>
-                            <span style={{ fontWeight: 'bold' }}>{user.opinions.reduce((acc, op) => acc + op.likes_count, 0)}</span>
+                            <span style={{ fontWeight: 'bold' }}>{(user as any).opinions?.reduce((acc: number, op: any) => acc + (op.likes_count || 0), 0)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span>제안한 주제</span>
-                            <span style={{ fontWeight: 'bold' }}>{user._count.suggestions}</span>
+                            <span style={{ fontWeight: 'bold' }}>{(user as any)._count?.suggestions || 0}</span>
                         </div>
                     </div>
 

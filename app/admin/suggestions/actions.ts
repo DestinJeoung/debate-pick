@@ -10,7 +10,7 @@ export async function updateSuggestionStatus(id: string, status: string) {
         throw new Error('Unauthorized');
     }
 
-    await prisma.topicSuggestion.update({
+    await (prisma as any).topicSuggestion.update({
         where: { id },
         data: { status },
     });

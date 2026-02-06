@@ -18,7 +18,7 @@ export async function submitSuggestion(prevState: any, formData: FormData) {
     }
 
     try {
-        await prisma.topicSuggestion.create({
+        await (prisma as any).topicSuggestion.create({
             data: {
                 userId: session.userId,
                 title,
