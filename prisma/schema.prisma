@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String    // In real app, hash this!
+  nickname    String
+  role        String    @default("USER") // "USER" or "ADMIN"
+  profile_img String?
+  createdAt   DateTime  @default(now())
+  opinions    Opinion[]
+  likes       OpinionLike[]
+  suggestions TopicSuggestion[]
+
+  @@map("users")
+}
+
+model TopicSuggestion {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("topic_suggestions")
+}
+
+model Topic {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  thumbnail   String?
+  pros_label  String    @default("찬성")
+  cons_label  String    @default("반대")
+  pros_count  Int       @default(0)
+  cons_count  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  opinions    Opinion[]
+
+  @@map("topics")
+}
+
+model Opinion {
+  id          String   @id @default(cuid())
+  topicId     String
+  userId      String
+  side        String   // "PROS" or "CONS"
+  content     String
+  likes_count Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes       OpinionLike[]
+
+  @@map("opinions")
+}
+
+model OpinionLike {
+  id        String   @id @default(cuid())
+  opinionId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  opinion   Opinion  @relation(fields: [opinionId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, opinionId])
+  @@map("opinion_likes")
+}

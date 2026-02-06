@@ -1,0 +1,221 @@
+:root {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-pros: #3b82f6; /* Blue for Pros */
+  --accent-cons: #ef4444; /* Red for Cons */
+  --accent-hover: #60a5fa;
+  --border-color: #334155;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 2rem;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(to right, var(--accent-pros), var(--accent-cons));
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Cards */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  border-color: var(--text-secondary);
+}
+
+.card-image {
+  width: 100%;
+  height: 180px;
+  background-color: #333;
+  object-fit: cover;
+}
+
+.card-content {
+  padding: 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.card-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  flex: 1;
+}
+
+/* Progress Bar */
+.progress-container {
+  height: 8px;
+  background-color: var(--accent-cons);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  margin-top: auto;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--accent-pros);
+  transition: width 0.5s ease-out;
+}
+
+.vote-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
+.stat-pros { color: var(--accent-pros); }
+.stat-cons { color: var(--accent-cons); }
+
+/* Detail Page */
+.detail-header {
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.detail-img {
+  width: 100%;
+  max-width: 800px;
+  height: 400px;
+  object-fit: cover;
+  border-radius: 16px;
+  margin: 0 auto 2rem;
+  display: block;
+}
+
+.vote-actions {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+.btn {
+  padding: 1rem 3rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+}
+
+.btn-pros {
+  background-color: var(--accent-pros);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.btn-cons {
+  background-color: var(--accent-cons);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.split-layout {
+  display: flex;
+  gap: 2rem;
+  min-height: 500px;
+}
+
+.split-col {
+  flex: 1;
+  background-color: rgba(30, 41, 59, 0.5);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.col-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid;
+}
+
+.header-pros { border-color: var(--accent-pros); color: var(--accent-pros); }
+.header-cons { border-color: var(--accent-cons); color: var(--accent-cons); }
+
+.opinion-card {
+  background-color: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border-left: 4px solid transparent;
+}
+
+.border-pros { border-left-color: var(--accent-pros); }
+.border-cons { border-left-color: var(--accent-cons); }
+
+.opinion-author {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+}
