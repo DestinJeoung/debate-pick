@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const secretKey = process.env.JWT_SECRET || 'debate-pick-fallback-secret-key-1234';
+const secretKey = process.env.JWT_SECRET || 'debate_pick_production_secret_key_12345';
 const key = new TextEncoder().encode(secretKey);
 
 export async function encrypt(payload: any) {
