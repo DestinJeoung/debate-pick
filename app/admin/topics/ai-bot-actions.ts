@@ -69,25 +69,45 @@ export async function generateAIOpinions(topicId: string, side: 'PROS' | 'CONS',
     `;
 
     try {
-        const result = await model.generateContent(prompt);
+        console.log(`Generating AI feedback for topic ${topicId}, side ${side}...`);
+
+        // Add a timeout to the AI call
+        const aiPromise = model.generateContent(prompt);
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('AI Request Timeout')), 15000)
+        );
+
+        const result = (await Promise.race([aiPromise, timeoutPromise])) as any;
         const response = await result.response;
         const text = response.text();
+
+        console.log(`AI Response received: ${text.substring(0, 100)}...`);
 
         // Extract JSON array robustly
         const startIndex = text.indexOf('[');
         const endIndex = text.lastIndexOf(']');
-        if (startIndex === -1 || endIndex === -1) return { error: 'Failed to parse AI response' };
+        if (startIndex === -1 || endIndex === -1) {
+            console.error('AI response did not contain a JSON array:', text);
+            return { error: 'AI 응답 형식이 올바르지 않습니다.' };
+        }
 
         const jsonStr = text.substring(startIndex, endIndex + 1);
-        const opinions = JSON.parse(jsonStr) as string[];
+        let opinions;
+        try {
+            opinions = JSON.parse(jsonStr) as string[];
+        } catch (parseErr) {
+            console.error('JSON Parse Error:', parseErr, jsonStr);
+            return { error: 'AI 응답 파싱 실패' };
+        }
 
         // Get random bots
         const bots = await prisma.user.findMany({
             where: { role: 'BOT' }
         });
 
-        if (bots.length === 0) return { error: 'No bots found. Please seed bots first.' };
+        if (bots.length === 0) return { error: '활동 중인 봇이 없습니다. 먼저 봇을 생성해 주세요.' };
 
+        // Create opinions in a transaction or individually
         for (let i = 0; i < Math.min(opinions.length, count); i++) {
             const bot = bots[Math.floor(Math.random() * bots.length)];
             await prisma.opinion.create({
@@ -98,21 +118,23 @@ export async function generateAIOpinions(topicId: string, side: 'PROS' | 'CONS',
                     content: opinions[i],
                 }
             });
-
-            // Update topic counts
-            await prisma.topic.update({
-                where: { id: topicId },
-                data: {
-                    [side === 'PROS' ? 'pros_count' : 'cons_count']: { increment: 1 }
-                }
-            });
         }
+
+        // Batch update counts
+        await prisma.topic.update({
+            where: { id: topicId },
+            data: {
+                [side === 'PROS' ? 'pros_count' : 'cons_count']: {
+                    increment: Math.min(opinions.length, count)
+                }
+            }
+        });
 
         revalidatePath(`/topics/${topicId}`);
         revalidatePath('/admin/topics');
-        return { success: true, message: `${opinions.length} AI opinions generated` };
-    } catch (e) {
-        console.error(e);
-        return { error: 'AI Generation failed' };
+        return { success: true, message: `${Math.min(opinions.length, count)}개의 AI 의견이 생성되었습니다.` };
+    } catch (e: any) {
+        console.error('AI Opinion Generation Critical Error:', e);
+        return { error: `오류 발생: ${e.message || '알 수 없는 오류'}` };
     }
 }
