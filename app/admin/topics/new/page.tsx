@@ -63,15 +63,15 @@ export default function NewTopicPage() {
             translatedTitle = "social debate topic concept";
         }
 
-        // Optimized prompt: Very simple and reliable
-        const promptContext = `debate topic ${translatedTitle} professional 3d render banner`;
+        // Optimized prompt: Extremely simple to ensure the AI service doesn't reject it
+        // We only use the translated keyword for maximum stability
+        const promptContext = `${translatedTitle} 3d art thumbnail`;
         const prompt = encodeURIComponent(promptContext);
 
-        // Simplified URL structure often works better with Pollinations.ai
-        // Adding a timestamp for cache busting and a random seed
-        const generatedUrl = `https://pollinations.ai/p/${prompt}?width=800&height=450&seed=${Math.floor(Math.random() * 10000)}&nologo=true&t=${Date.now()}`;
+        // Correct endpoint for direct images: image.pollinations.ai/prompt/
+        const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
 
-        console.log("Generated AI Image URL:", generatedUrl);
+        console.log("Final AI Image URL:", generatedUrl);
 
         // Simulate AI generation process with a delay
         await new Promise(resolve => setTimeout(resolve, 1500));
