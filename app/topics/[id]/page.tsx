@@ -10,7 +10,7 @@ import { Metadata } from 'next';
 export const dynamic = 'force-dynamic';
 
 // Helper for timeout
-const withTimeout = <T,>(promise: Promise<T>, ms: number = 5000): Promise<T> => {
+const withTimeout = <T,>(promise: Promise<T>, ms: number = 15000): Promise<T> => {
     return Promise.race([
         promise,
         new Promise<T>((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), ms))
