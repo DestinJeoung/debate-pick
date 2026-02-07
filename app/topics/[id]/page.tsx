@@ -14,13 +14,12 @@ import { cache, Suspense } from 'react';
 export const dynamic = 'force-dynamic';
 
 /**
- * Optimization: We use a single, efficient query to fetch topic and opinions at once.
- * This prevents opening multiple database connections in a serverless environment
- * where the connection pool (limit 5) can be easily exhausted.
+ * SUPER OPTIMIZED FETCH: 
+ * Every DB call in a Serverless environment uses a precious connection.
+ * We must fetch everything in one go or sequentially.
  */
-const getTopicWithOpinions = cache(async (id: string, currentUserId?: string, sort: string = 'popular') => {
-    console.log(`[getTopicWithOpinions] Fetching data for: ${id}`);
-
+const getFullPageData = cache(async (id: string, userId?: string, sort: string = 'popular') => {
+    console.log(`[getFullPageData] Start: ${id}`);
     const getOrderBy = () => {
         switch (sort) {
             case 'latest': return [{ createdAt: 'desc' as const }];
@@ -31,29 +30,28 @@ const getTopicWithOpinions = cache(async (id: string, currentUserId?: string, so
     };
 
     try {
-        return await prisma.topic.findUnique({
+        // Fetch topic and opinions in ONE query
+        const topic = await prisma.topic.findUnique({
             where: { id },
             include: {
                 opinions: {
                     // @ts-ignore
                     where: { parentId: null },
                     orderBy: getOrderBy(),
-                    // We fetch a bit more to filter in memory, or we accept a combined limit
-                    // To keep it simple and efficient, let's fetch top 40 root opinions
-                    take: 40,
+                    take: 21, // Fetch enough to show 10 per side + check hasMore
                     include: {
                         user: true,
-                        ...(currentUserId ? {
-                            likes: { where: { userId: currentUserId } }
+                        ...(userId ? {
+                            likes: { where: { userId } }
                         } : {}),
                         // @ts-ignore
                         replies: {
-                            take: 3, // Smaller reply limit for initial load
+                            take: 2, // Very low initial replies
                             orderBy: { createdAt: 'asc' },
                             include: {
                                 user: true,
-                                ...(currentUserId ? {
-                                    likes: { where: { userId: currentUserId } }
+                                ...(userId ? {
+                                    likes: { where: { userId } }
                                 } : {}),
                             }
                         }
@@ -61,15 +59,27 @@ const getTopicWithOpinions = cache(async (id: string, currentUserId?: string, so
                 }
             }
         });
+
+        if (!topic) return null;
+
+        // Fetch related topics SEQUENTIALLY
+        const related = await prisma.topic.findMany({
+            where: { NOT: { id } },
+            take: 4,
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
+        });
+
+        return { topic, related };
     } catch (e) {
-        console.error("[getTopicWithOpinions] Error:", e);
-        return null;
+        console.error("[getFullPageData] Critical DB Error:", e);
+        throw e;
     }
 });
 
-// Metadata ONLY fetches what it needs. Very lightweight.
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
     try {
+        // Using a simpler query for metadata to avoid pool issues
         const topic = await prisma.topic.findUnique({
             where: { id: params.id },
             select: { title: true, description: true }
@@ -77,10 +87,10 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
         if (!topic) return { title: '주제를 찾을 수 없습니다' };
         return {
             title: `${topic.title} | Debate Pick`,
-            description: topic.description?.substring(0, 160) || '실시간 토론에 참여하세요.',
+            description: topic.description?.substring(0, 160),
         };
     } catch (e) {
-        return { title: '토론 상세 | Debate Pick' };
+        return { title: '토론 | Debate Pick' };
     }
 }
 
@@ -89,34 +99,23 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
 
     try {
         const session = await getSession();
-        const currentUserId = session?.userId;
-        const isAdmin = session?.role === 'ADMIN';
+        const data = await getFullPageData(params.id, session?.userId, sort);
 
-        // 1. Fetch main topic data (Single connection)
-        const topic = await getTopicWithOpinions(params.id, currentUserId, sort);
-
-        if (!topic) {
+        if (!data) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
         }
 
-        // 2. Fetch related topics (Sequential to save connections)
-        const relatedTopics = await prisma.topic.findMany({
-            where: { NOT: { id: params.id } },
-            take: 4,
-            orderBy: { createdAt: 'desc' },
-            select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
-        });
+        const { topic, related } = data;
+        const currentUserId = session?.userId;
+        const isAdmin = session?.role === 'ADMIN';
 
-        // Split opinions in memory to avoid extra DB calls
         const opinions = (topic as any).opinions || [];
         const prosOpinions = opinions.filter((o: any) => o.side === 'PROS');
         const consOpinions = opinions.filter((o: any) => o.side === 'CONS');
 
-        // Logic for pagination - since we took 40, we just show top 10 for each side
         const prosToDisplay = prosOpinions.slice(0, 10);
         const consToDisplay = consOpinions.slice(0, 10);
 
-        // Simplified cursor logic for the initial "Load More"
         const prosHasMore = prosOpinions.length > 10;
         const consHasMore = consOpinions.length > 10;
         const prosCursor = prosToDisplay.length > 0 ? prosToDisplay[prosToDisplay.length - 1].id : null;
@@ -200,7 +199,7 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
                     </div>
                 </div>
 
-                {relatedTopics.length > 0 && (
+                {related.length > 0 && (
                     <div style={{ marginTop: '5rem' }}>
                         <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>다른 뜨거운 감자 보기</h2>
                         <div style={{
@@ -208,7 +207,7 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
                             gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
                             gap: '1.5rem'
                         }}>
-                            {relatedTopics.map(rel => (
+                            {related.map(rel => (
                                 <Link key={rel.id} href={`/topics/${rel.id}`} className="card" style={{ textDecoration: 'none', color: 'inherit', padding: '1rem' }}>
                                     {rel.thumbnail && (
                                         <img src={rel.thumbnail} alt={rel.title} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', marginBottom: '0.8rem' }} />
@@ -223,7 +222,7 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
             </div>
         );
     } catch (error) {
-        console.error("[TopicDetail] Error:", error);
-        return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 새로고침 해주세요.</div>;
+        console.error("[TopicDetail] Error rendering page:", error);
+        return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>;
     }
 }
