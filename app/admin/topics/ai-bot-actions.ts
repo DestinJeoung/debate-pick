@@ -55,7 +55,7 @@ export async function generateAIOpinions(topicId: string, side: 'PROS' | 'CONS',
     const sideLabel = side === 'PROS' ? topic.pros_label : topic.cons_label;
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
 
     const prompt = `
         토론 주제: "${topic.title}" - ${topic.description}
