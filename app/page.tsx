@@ -8,6 +8,7 @@ export default async function Home({ searchParams }: { searchParams: { sort?: st
     const sort = searchParams?.sort || 'latest';
 
     const topics = await prisma.topic.findMany({
+        take: 20,
         orderBy: sort === 'popular'
             ? [{ pros_count: 'desc' }, { cons_count: 'desc' }]
             : { createdAt: 'desc' },
