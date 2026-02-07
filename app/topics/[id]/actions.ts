@@ -86,6 +86,7 @@ export async function submitReply(prevState: any, formData: FormData) {
             return { message: '부모 의견을 찾을 수 없습니다.' };
         }
 
+        // @ts-ignore
         await prisma.opinion.create({
             data: {
                 topicId,

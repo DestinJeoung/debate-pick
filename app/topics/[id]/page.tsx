@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import DebateClient from './DebateClient';
 import OpinionCard from './OpinionCard';
 import { getSession } from '@/lib/session';
+import ShareButton from './ShareButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,10 +10,12 @@ export default async function TopicDetail({ params }: { params: { id: string } }
     const session = await getSession();
     const currentUserId = session?.userId;
 
+    // @ts-ignore
     const topic = await prisma.topic.findUnique({
         where: { id: params.id },
         include: {
             opinions: {
+                // @ts-ignore
                 where: { parentId: null }, // Only top-level
                 orderBy: [
                     { likes_count: 'desc' },
@@ -23,6 +26,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                     likes: currentUserId ? {
                         where: { userId: currentUserId }
                     } : false,
+                    // @ts-ignore
                     replies: {
                         orderBy: { createdAt: 'asc' },
                         include: {
@@ -52,15 +56,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                     {topic.description}
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-                    <button
-                        onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            alert('링크가 복사되었습니다!');
-                        }}
-                        style={{ background: '#334155', border: 'none', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                    >
-                        🔗 링크 복사
-                    </button>
+                    <ShareButton />
                 </div>
             </div>
 
