@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import AdSense from '@/components/AdSense';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,8 @@ export default async function Home({ searchParams }: { searchParams: { sort?: st
                     <Link href="/?sort=popular" className={`btn ${sort === 'popular' ? '' : 'btn-outline'}`} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', background: sort === 'popular' ? '#3b82f6' : 'transparent', color: 'white', border: '1px solid #3b82f6', borderRadius: '4px' }}>인기순</Link>
                 </div>
             </div>
+
+            <AdSense adSlot="1234567890" style={{ marginBottom: '2.5rem' }} />
 
             <div className="card-grid">
                 {topics.map((topic) => {

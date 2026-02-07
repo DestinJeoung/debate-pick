@@ -3,6 +3,7 @@ import DebateClient from './DebateClient';
 import OpinionCard from './OpinionCard';
 import { getSession } from '@/lib/session';
 import ShareButton from './ShareButton';
+import AdSense from '@/components/AdSense';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +69,8 @@ export default async function TopicDetail({ params }: { params: { id: string } }
             {topic.thumbnail && (
                 <img src={topic.thumbnail} alt={topic.title} className="detail-img" />
             )}
+
+            <AdSense adSlot="9876543210" />
 
             {/* Interactive Section */}
             <DebateClient topic={topic} />
