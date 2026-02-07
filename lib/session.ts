@@ -1,7 +1,10 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const secretKey = process.env.JWT_SECRET || 'debate_pick_production_secret_key_12345';
+const secretKey = process.env.JWT_SECRET;
+if (!secretKey) {
+    throw new Error('JWT_SECRET environment variable is not set');
+}
 const key = new TextEncoder().encode(secretKey);
 
 export async function encrypt(payload: any) {
@@ -45,3 +48,4 @@ export async function createSession(userId: string, nickname: string, role: stri
 export async function deleteSession() {
     cookies().set('session', '', { expires: new Date(0) });
 }
+

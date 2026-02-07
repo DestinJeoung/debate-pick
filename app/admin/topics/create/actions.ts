@@ -22,7 +22,7 @@ export async function createTopic(prevState: any, formData: FormData) {
     }
 
     try {
-        await prisma.topic.create({
+        const topic = await prisma.topic.create({
             data: {
                 title,
                 description,
@@ -31,7 +31,22 @@ export async function createTopic(prevState: any, formData: FormData) {
                 cons_label,
             },
         });
+
+        // Send notification to all users about new topic
+        const users = await prisma.user.findMany({ select: { id: true } });
+        if (users.length > 0) {
+            // @ts-ignore
+            await prisma.notification.createMany({
+                data: users.map(user => ({
+                    userId: user.id,
+                    type: 'NEW_TOPIC',
+                    message: `새로운 토론 주제가 등록되었습니다: ${title}`,
+                    linkUrl: `/topics/${topic.id}`
+                }))
+            });
+        }
     } catch (e) {
+        console.error(e);
         return { message: 'DB Error' };
     }
 

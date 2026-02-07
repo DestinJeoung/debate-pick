@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 import { getSession } from '@/lib/session';
 import Link from 'next/link';
-import { headers } from 'next/headers';
+import NotificationBell from '@/components/NotificationBell';
 
 // ... (metadata import)
 
@@ -37,6 +37,7 @@ export default async function RootLayout({
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                         {session ? (
                             <>
+                                <NotificationBell />
                                 <span style={{ fontWeight: '600' }}>{session.nickname}님</span>
                                 <Link href="/mypage" style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
                                     내 활동

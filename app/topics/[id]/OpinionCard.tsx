@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { toggleLike } from './like-action';
 import { submitReply, editOpinion, deleteOpinion, toggleBlindOpinion } from './actions';
+import ReportModal from './ReportModal';
 // @ts-ignore
 import { useFormState, useFormStatus } from 'react-dom';
 
@@ -43,6 +44,7 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
     const [isEditing, setIsEditing] = useState(false);
     const [isBlinded, setIsBlinded] = useState(opinion.isBlinded);
     const [editContent, setEditContent] = useState(opinion.content);
+    const [showReportModal, setShowReportModal] = useState(false);
     const [replyState, replyAction] = useFormState(submitReply, { message: '' });
     const [editState, editAction] = useFormState(editOpinion, { message: '' });
 
@@ -127,6 +129,15 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem' }}
                         >
                             답글
+                        </button>
+                    )}
+                    {!isAuthor && !isBlinded && currentUserId && (
+                        <button
+                            onClick={() => setShowReportModal(true)}
+                            title="신고"
+                            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.9rem' }}
+                        >
+                            🚨
                         </button>
                     )}
                     <button
@@ -216,6 +227,12 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                     ))}
                 </div>
             )}
+
+            <ReportModal
+                opinionId={opinion.id}
+                isOpen={showReportModal}
+                onClose={() => setShowReportModal(false)}
+            />
         </div>
     );
 }

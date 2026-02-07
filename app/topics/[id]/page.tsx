@@ -6,22 +6,40 @@ import { getSession } from '@/lib/session';
 import ShareButton from './ShareButton';
 import AdSense from '@/components/AdSense';
 import { Metadata } from 'next';
-import Script from 'next/script';
+import SortTabs from './SortTabs';
+import LoadMoreButton from './LoadMoreButton';
 
 export const dynamic = 'force-dynamic';
 
 // Optimization: Parallel fetching and simplified structure
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-    // To prevent redundant DB calls, we can just use a generic title or fetch only the title
-    // But for now, let's keep it simple to avoid hangs
+    const topic = await prisma.topic.findUnique({
+        where: { id: params.id },
+        select: { title: true, description: true }
+    });
+
     return {
-        title: `토론 상세 | Debate Pick`,
-        description: '실시간 토론에 참여하세요.',
+        title: `${topic?.title || '토론'} | Debate Pick`,
+        description: topic?.description?.substring(0, 160) || '실시간 토론에 참여하세요.',
     };
 }
 
-export default async function TopicDetail({ params }: { params: { id: string } }) {
-    console.log(`[TopicDetail] Loading topic: ${params.id}`);
+export default async function TopicDetail({ params, searchParams }: { params: { id: string }, searchParams: { sort?: string } }) {
+    const sort = searchParams?.sort || 'popular';
+    console.log(`[TopicDetail] Loading topic: ${params.id}, sort: ${sort}`);
+
+    // Determine orderBy based on sort param
+    const getOrderBy = () => {
+        switch (sort) {
+            case 'latest':
+                return [{ createdAt: 'desc' as const }];
+            case 'oldest':
+                return [{ createdAt: 'asc' as const }];
+            case 'popular':
+            default:
+                return [{ likes_count: 'desc' as const }, { createdAt: 'desc' as const }];
+        }
+    };
 
     try {
         const session = await getSession();
@@ -36,10 +54,8 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                     opinions: {
                         // @ts-ignore
                         where: { parentId: null },
-                        orderBy: [
-                            { likes_count: 'desc' },
-                            { createdAt: 'desc' }
-                        ],
+                        orderBy: getOrderBy(),
+                        take: 10, // Initial load - pagination
                         include: {
                             user: true,
                             ...(currentUserId ? {
@@ -74,6 +90,12 @@ export default async function TopicDetail({ params }: { params: { id: string } }
         const prosOpinions = opinions.filter((o: any) => o.side === 'PROS');
         const consOpinions = opinions.filter((o: any) => o.side === 'CONS');
 
+        // Check if there are more opinions for pagination
+        const prosHasMore = prosOpinions.length >= 10;
+        const consHasMore = consOpinions.length >= 10;
+        const prosCursor = prosOpinions.length > 0 ? prosOpinions[prosOpinions.length - 1].id : null;
+        const consCursor = consOpinions.length > 0 ? consOpinions[consOpinions.length - 1].id : null;
+
         return (
             <div className="container">
                 <div className="detail-header">
@@ -94,6 +116,8 @@ export default async function TopicDetail({ params }: { params: { id: string } }
 
                 <DebateClient topic={topic as any} />
 
+                <SortTabs topicId={params.id} />
+
                 <div className="split-layout">
                     <div className="split-col">
                         <div className="col-header header-pros">
@@ -110,6 +134,15 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                                 isAdmin={isAdmin}
                             />
                         ))}
+                        <LoadMoreButton
+                            topicId={params.id}
+                            side="PROS"
+                            initialCursor={prosCursor}
+                            hasMoreInitial={prosHasMore}
+                            borderColorClass="border-pros"
+                            currentUserId={currentUserId}
+                            isAdmin={isAdmin}
+                        />
                     </div>
 
                     <div className="split-col">
@@ -127,6 +160,15 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                                 isAdmin={isAdmin}
                             />
                         ))}
+                        <LoadMoreButton
+                            topicId={params.id}
+                            side="CONS"
+                            initialCursor={consCursor}
+                            hasMoreInitial={consHasMore}
+                            borderColorClass="border-cons"
+                            currentUserId={currentUserId}
+                            isAdmin={isAdmin}
+                        />
                     </div>
                 </div>
 

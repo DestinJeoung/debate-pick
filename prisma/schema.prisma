@@ -11,15 +11,17 @@ datasource db {
 model User {
   id          String    @id @default(cuid())
   email       String    @unique
-  password    String    // In real app, hash this!
+  password    String    // Hashed with bcrypt
   nickname    String
-  role        String    @default("USER") // "USER" or "ADMIN"
+  role        String    @default("USER") // "USER", "ADMIN", or "BOT"
   profile_img        String?
   createdAt          DateTime  @default(now())
   lastNicknameUpdate DateTime? // For 30-day cooldown
   opinions           Opinion[]
   likes              OpinionLike[]
   suggestions        TopicSuggestion[]
+  reports            Report[] @relation("ReportedBy")
+  notifications      Notification[]
 
   @@map("users")
 }
@@ -70,6 +72,7 @@ model Opinion {
   topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   likes       OpinionLike[]
+  reports     Report[]
 
   @@map("opinions")
 }
@@ -85,4 +88,35 @@ model OpinionLike {
 
   @@unique([userId, opinionId])
   @@map("opinion_likes")
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  opinionId   String
+  reporterId  String
+  reason      String   // SPAM, ABUSE, HATE, OTHER
+  description String?
+  status      String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  opinion     Opinion  @relation(fields: [opinionId], references: [id], onDelete: Cascade)
+  reporter    User     @relation("ReportedBy", fields: [reporterId], references: [id])
+
+  @@unique([opinionId, reporterId])
+  @@map("reports")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // LIKE, REPLY, NEW_TOPIC
+  message   String
+  linkUrl   String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }
