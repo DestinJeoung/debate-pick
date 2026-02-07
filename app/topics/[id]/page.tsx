@@ -1,11 +1,34 @@
+import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import DebateClient from './DebateClient';
 import OpinionCard from './OpinionCard';
 import { getSession } from '@/lib/session';
 import ShareButton from './ShareButton';
 import AdSense from '@/components/AdSense';
+import { Metadata } from 'next';
+import Script from 'next/script';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+    const topic = await prisma.topic.findUnique({
+        where: { id: params.id }
+    });
+
+    if (!topic) return {};
+
+    const description = topic.description.slice(0, 160);
+    return {
+        title: `${topic.title} | Debate Pick`,
+        description: topic.description,
+        openGraph: {
+            title: topic.title,
+            description: topic.description,
+            images: topic.thumbnail ? [{ url: topic.thumbnail }] : [],
+            type: 'article',
+        },
+    };
+}
 
 export default async function TopicDetail({ params }: { params: { id: string } }) {
     const session = await getSession();
@@ -51,8 +74,14 @@ export default async function TopicDetail({ params }: { params: { id: string } }
         return <div className="container">Post not found</div>;
     }
 
-    const prosOpinions = topic.opinions.filter(o => o.side === 'PROS');
-    const consOpinions = topic.opinions.filter(o => o.side === 'CONS');
+    const relatedTopics = await prisma.topic.findMany({
+        where: { NOT: { id: params.id } },
+        take: 4,
+        orderBy: { createdAt: 'desc' }
+    });
+
+    const prosOpinions = (topic as any).opinions.filter((o: any) => o.side === 'PROS');
+    const consOpinions = (topic as any).opinions.filter((o: any) => o.side === 'CONS');
 
     return (
         <div className="container">
@@ -111,6 +140,51 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                     {consOpinions.length === 0 && <p style={{ textAlign: 'center', color: '#666' }}>등록된 의견이 없습니다.</p>}
                 </div>
             </div>
+
+            {/* Related Topics */}
+            <div style={{ marginTop: '5rem' }}>
+                <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>다른 뜨거운 감자 보기</h2>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                    gap: '1.5rem'
+                }}>
+                    {relatedTopics.map(rel => (
+                        <Link key={rel.id} href={`/topics/${rel.id}`} className="card" style={{ textDecoration: 'none', color: 'inherit', padding: '1rem' }}>
+                            {rel.thumbnail && (
+                                <img src={rel.thumbnail} alt={rel.title} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', marginBottom: '0.8rem' }} />
+                            )}
+                            <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{rel.title}</h3>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>참여 {rel.pros_count + rel.cons_count}명</span>
+                        </Link>
+                    ))}
+                </div>
+            </div>
+
+            {/* JSON-LD for SEO */}
+            <Script
+                id="json-ld"
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "DiscussionForumPosting",
+                        "headline": topic.title,
+                        "description": topic.description,
+                        "author": {
+                            "@type": "Organization",
+                            "name": "Debate Pick"
+                        },
+                        "datePublished": topic.createdAt.toISOString(),
+                        "image": topic.thumbnail || "",
+                        "interactionStatistic": {
+                            "@type": "InteractionCounter",
+                            "interactionType": "https://schema.org/CommentAction",
+                            "userInteractionCount": prosOpinions.length + consOpinions.length
+                        }
+                    })
+                }}
+            />
         </div>
     );
 }
