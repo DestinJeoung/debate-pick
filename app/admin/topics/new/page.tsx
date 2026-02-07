@@ -23,6 +23,7 @@ export default function NewTopicPage() {
     const [state, formAction] = useFormState(createTopic, initialState);
     const [thumbUrl, setThumbUrl] = useState('');
     const [isAiLoading, setIsAiLoading] = useState(false);
+    const [lastKeyword, setLastKeyword] = useState('debate');
 
     const suggestAiImage = async () => {
         const titleInput = document.getElementsByName('title')[0] as HTMLInputElement;
@@ -66,18 +67,20 @@ export default function NewTopicPage() {
             translatedTitle = "social debate topic concept";
         }
 
+        setLastKeyword(translatedTitle); // Store for fallback logic
+
         // Primary generative AI endpoint (Pollinations)
-        // Extremely simple prompt for maximum compatibility
+        // Using 'flux' model which is more robust
         const cleanPrompt = translatedTitle.replace(/[^a-zA-Z0-9 ]/g, '');
-        const prompt = encodeURIComponent(cleanPrompt + " professional thumbnail");
+        const prompt = encodeURIComponent(cleanPrompt + " professional digital art thumbnail");
 
-        // Finalized stable URL
-        const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&nologo=true&seed=${Math.floor(Math.random() * 99999)}`;
+        // Finalized stable URL with Flux model
+        const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&model=flux&nologo=true&seed=${Math.floor(Math.random() * 999999)}`;
 
-        console.log("Attempting AI Generation with URL:", generatedUrl);
+        console.log("Attempting AI flux Generation:", generatedUrl);
 
-        // Simulate AI generation process
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Simulate AI generation process with a slightly longer delay for quality
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         setThumbUrl(generatedUrl);
         setIsAiLoading(false);
@@ -85,7 +88,7 @@ export default function NewTopicPage() {
 
     return (
         <div className="container" style={{ maxWidth: '600px' }}>
-            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v5)</span></h1>
+            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v6)</span></h1>
             <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem' }}>제목</label>
@@ -123,15 +126,27 @@ export default function NewTopicPage() {
                     />
                     {thumbUrl && (
                         <div style={{ marginTop: '1rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
-                            <p style={{ fontSize: '0.8rem', padding: '0.5rem', background: '#0f172a', color: '#94a3b8', margin: 0 }}>미리보기</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '0.5rem' }}>
+                                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>AI 생성 결과 (v6)</p>
+                                <a href={thumbUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#3b82f6' }}>이미지 직접 확인 ↗</a>
+                            </div>
                             <img
                                 src={thumbUrl}
                                 alt="Thumbnail preview"
-                                style={{ width: '100%', height: '200px', objectFit: 'cover', background: '#1e293b' }}
+                                style={{ width: '100%', height: '240px', objectFit: 'cover', background: '#1e293b' }}
                                 onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1594322436404-5a0526db4d13?w=800&q=80'; // Fallback on error
+                                    console.error("AI load failed, trying fallback:", thumbUrl);
+                                    const img = e.target as HTMLImageElement;
+                                    // Robust fallback to LoremFlickr with specific keyword
+                                    if (!img.src.includes('loremflickr')) {
+                                        const keyword = lastKeyword.split(' ')[0] || 'debate';
+                                        img.src = `https://loremflickr.com/800/450/${encodeURIComponent(keyword)}?lock=${Math.floor(Math.random() * 100)}`;
+                                    }
                                 }}
                             />
+                            <p style={{ fontSize: '0.7rem', padding: '0.5rem', color: '#94a3b8', background: '#1e293b', margin: 0, textAlign: 'center' }}>
+                                추천 이미지가 마음에 안 들면 다시 버튼을 눌러보세요.
+                            </p>
                         </div>
                     )}
                 </div>
