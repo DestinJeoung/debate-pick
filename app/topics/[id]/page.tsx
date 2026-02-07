@@ -80,21 +80,20 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
-        // Fetch topic and related topics in parallel
-        // topic data is cached, relatedTopics is separate
-        const [topic, relatedTopics] = await Promise.all([
-            getTopicData(params.id, currentUserId, sort),
-            prisma.topic.findMany({
-                where: { NOT: { id: params.id } },
-                take: 4,
-                orderBy: { createdAt: 'desc' },
-                select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
-            })
-        ]);
+        // Fetch sequential to avoid hitting connection limit in serverless
+        const topic = await getTopicData(params.id, currentUserId, sort);
 
         if (!topic) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
         }
+
+        const relatedTopics = await prisma.topic.findMany({
+            where: { NOT: { id: params.id } },
+            take: 4,
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
+        });
+
 
         const opinions = (topic as any).opinions || [];
         const prosOpinions = opinions.filter((o: any) => o.side === 'PROS');
