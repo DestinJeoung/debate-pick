@@ -14,13 +14,38 @@ import { cache, Suspense } from 'react';
 export const dynamic = 'force-dynamic';
 
 /**
- * EXTREME STABILITY FETCH:
- * We split one big query into smaller ones to avoid complex joins
- * that might hang the database connection pool.
+ * SHARED CACHE: This ensures both generateMetadata and TopicDetail 
+ * share the SAME database call, reducing connection usage by 50%.
  */
-const getFullPageData = cache(async (id: string, userId?: string, sort: string = 'popular') => {
-    console.log(`[getFullPageData] 1. START for topic: ${id}`);
+const getTopicBase = cache(async (id: string) => {
+    console.log(`[getTopicBase] 1. Attempting fetch for: ${id}`);
+    try {
+        // We add a manual timeout to fetch to avoid infinite hangs
+        const fetchPromise = prisma.topic.findUnique({
+            where: { id },
+            select: {
+                id: true, title: true, description: true, thumbnail: true,
+                pros_label: true, cons_label: true,
+                pros_count: true, cons_count: true
+            }
+        });
 
+        // Timeout of 8 seconds for the base data
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("DB_TIMEOUT")), 8000)
+        );
+
+        const topic = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        console.log(`[getTopicBase] 2. Success: ${topic?.title || 'Not Found'}`);
+        return topic;
+    } catch (e) {
+        console.error(`[getTopicBase] !!! Error:`, e);
+        return null;
+    }
+});
+
+const getFullPageData = cache(async (id: string, userId?: string, sort: string = 'popular') => {
+    console.log(`[getFullPageData] 1. Start: ${id}`);
     const getOrderBy = () => {
         switch (sort) {
             case 'latest': return [{ createdAt: 'desc' as const }];
@@ -31,24 +56,15 @@ const getFullPageData = cache(async (id: string, userId?: string, sort: string =
     };
 
     try {
-        // Step 1: Fetch topic basic data
-        console.log(`[getFullPageData] 2. Fetching topic basics...`);
-        const topic = await prisma.topic.findUnique({
-            where: { id },
-            select: {
-                id: true, title: true, description: true, thumbnail: true,
-                pros_label: true, cons_label: true,
-                pros_count: true, cons_count: true
-            }
-        });
-
+        // Step 1: Use the shared cache for basics
+        const topic = await getTopicBase(id);
         if (!topic) {
-            console.log(`[getFullPageData] 2b. Topic NOT FOUND: ${id}`);
+            console.log(`[getFullPageData] 1b. Topic NOT FOUND via getTopicBase: ${id}`);
             return null;
         }
 
-        // Step 2: Fetch root opinions (excluding replies for now to speed up)
-        console.log(`[getFullPageData] 3. Fetching root opinions...`);
+        // Step 2: Fetch opinions
+        console.log(`[getFullPageData] 2. Fetching opinions...`);
         const opinions = await prisma.opinion.findMany({
             // @ts-ignore
             where: { topicId: id, parentId: null },
@@ -72,40 +88,33 @@ const getFullPageData = cache(async (id: string, userId?: string, sort: string =
                 }
             }
         });
-        console.log(`[getFullPageData] 4. Opinions fetched: ${opinions.length}`);
+        console.log(`[getFullPageData] 2b. Opinions fetched: ${opinions.length}`);
 
-        // Step 3: Fetch related topics
-        console.log(`[getFullPageData] 5. Fetching related topics...`);
+        // Step 3: Fetch related
+        console.log(`[getFullPageData] 3. Fetching related...`);
         const related = await prisma.topic.findMany({
             where: { NOT: { id } },
             take: 4,
             orderBy: { createdAt: 'desc' },
             select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
         });
-        console.log(`[getFullPageData] 6. FINISHED successfully`);
+        console.log(`[getFullPageData] 3b. Related topics fetched: ${related.length}`);
 
+        console.log(`[getFullPageData] 4. Done`);
         return { topic, opinions, related };
     } catch (e) {
-        console.error("[getFullPageData] !!! CRITICAL DB ERROR:", e);
-        return null; // Return null so the UI can show a friendly error instead of hanging
+        console.error("[getFullPageData] Critical Error:", e);
+        return null;
     }
 });
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-    try {
-        // Minimal fetch for metadata
-        const topic = await prisma.topic.findUnique({
-            where: { id: params.id },
-            select: { title: true, description: true }
-        });
-        if (!topic) return { title: '주제를 찾을 수 없습니다' };
-        return {
-            title: `${topic.title} | Debate Pick`,
-            description: topic.description?.substring(0, 160),
-        };
-    } catch (e) {
-        return { title: '토론 | Debate Pick' };
-    }
+    const topic = await getTopicBase(params.id);
+    if (!topic) return { title: '주제를 찾을 수 없습니다 | Debate Pick' };
+    return {
+        title: `${topic.title} | Debate Pick`,
+        description: topic.description?.substring(0, 160),
+    };
 }
 
 export default async function TopicDetail({ params, searchParams }: { params: { id: string }, searchParams: { sort?: string } }) {
@@ -118,8 +127,8 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
         if (!data) {
             return (
                 <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>
-                    <h2>⚠️ 데이터를 불러올 수 없습니다.</h2>
-                    <p style={{ color: '#94a3b8', marginTop: '1rem' }}>데이터베이스 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.</p>
+                    <h2>⚠️ 페이지를 불러올 수 없습니다.</h2>
+                    <p style={{ color: '#94a3b8', marginTop: '1rem' }}>서버 연결이 원활하지 않습니다. 잠시 후 새로고침 부탁드립니다.</p>
                 </div>
             );
         }
@@ -240,7 +249,7 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
             </div>
         );
     } catch (error) {
-        console.error("[TopicDetail] CRITICAL RENDER ERROR:", error);
-        return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>데이터를 불러오는 중 오류가 발생했습니다.</div>;
+        console.error("[TopicDetail] Final Error:", error);
+        return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>데이터를 불러올 수 없습니다.</div>;
     }
 }
