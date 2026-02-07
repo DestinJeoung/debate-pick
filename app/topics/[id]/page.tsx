@@ -56,7 +56,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
     return (
         <div className="container">
             <div className="detail-header">
-                <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{topic.title}</h1>
+                <h1 className="topic-title">{topic.title}</h1>
                 <p style={{ color: '#94a3b8', fontSize: '1.2rem', maxWidth: '800px', margin: '0 auto', marginBottom: '1.5rem' }}>
                     {topic.description}
                 </p>

@@ -15,7 +15,7 @@ export default async function Home({ searchParams }: { searchParams: { sort?: st
     return (
         <div className="container">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h1 style={{ margin: 0 }}>실시간 뜨거운 감자</h1>
+                <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>🔥 <span style={{ letterSpacing: '1px' }}>HOT TOPIC</span></h1>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <Link href="/?sort=latest" className={`btn ${sort === 'latest' ? '' : 'btn-outline'}`} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', background: sort === 'latest' ? '#3b82f6' : 'transparent', color: 'white', border: '1px solid #3b82f6', borderRadius: '4px' }}>최신순</Link>
                     <Link href="/?sort=popular" className={`btn ${sort === 'popular' ? '' : 'btn-outline'}`} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', background: sort === 'popular' ? '#3b82f6' : 'transparent', color: 'white', border: '1px solid #3b82f6', borderRadius: '4px' }}>인기순</Link>
