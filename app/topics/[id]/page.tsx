@@ -80,7 +80,6 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
-        console.time(`[TopicDetail] Fetch: ${params.id}`);
         // Fetch topic and related topics in parallel
         // topic data is cached, relatedTopics is separate
         const [topic, relatedTopics] = await Promise.all([
@@ -92,7 +91,6 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
                 select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
             })
         ]);
-        console.timeEnd(`[TopicDetail] Fetch: ${params.id}`);
 
         if (!topic) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
