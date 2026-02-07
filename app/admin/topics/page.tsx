@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { deleteTopic } from './actions';
+import AIBotControl from './AIBotControl';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ export default async function AdminTopicsPage() {
                     <tr style={{ background: '#334155', textAlign: 'left' }}>
                         <th style={{ padding: '1rem' }}>제목</th>
                         <th style={{ padding: '1rem' }}>의견 수</th>
+                        <th style={{ padding: '1rem' }}>AI 참여</th>
                         <th style={{ padding: '1rem' }}>작성일</th>
                         <th style={{ padding: '1rem' }}>관리</th>
                     </tr>
@@ -39,6 +41,9 @@ export default async function AdminTopicsPage() {
                         <tr key={topic.id} style={{ borderBottom: '1px solid #334155' }}>
                             <td style={{ padding: '1rem' }}>{topic.title}</td>
                             <td style={{ padding: '1rem' }}>{topic._count.opinions}</td>
+                            <td style={{ padding: '1rem' }}>
+                                <AIBotControl topicId={topic.id} />
+                            </td>
                             <td style={{ padding: '1rem' }}>{new Date(topic.createdAt).toLocaleDateString()}</td>
                             <td style={{ padding: '1rem' }}>
                                 <form action={async () => {

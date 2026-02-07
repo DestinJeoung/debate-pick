@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import AIBotControl from './topics/AIBotControl';
 
 export default async function AdminPage() {
     const session = await getSession();
@@ -12,6 +13,8 @@ export default async function AdminPage() {
     return (
         <div className="container">
             <h1 style={{ marginBottom: '2rem' }}>관리자 대시보드</h1>
+
+            <AIBotControl />
 
             <div className="card-grid">
                 <Link href="/admin/topics/new" className="card" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '150px', background: '#3b82f6' }}>
