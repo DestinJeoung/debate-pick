@@ -13,39 +13,45 @@ import { cache, Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * SHARED CACHE: This ensures both generateMetadata and TopicDetail 
- * share the SAME database call, reducing connection usage by 50%.
- */
 const getTopicBase = cache(async (id: string) => {
     console.log(`[getTopicBase] 1. Attempting fetch for: ${id}`);
-    try {
-        // We add a manual timeout to fetch to avoid infinite hangs
-        const fetchPromise = prisma.topic.findUnique({
-            where: { id },
-            select: {
-                id: true, title: true, description: true, thumbnail: true,
-                pros_label: true, cons_label: true,
-                pros_count: true, cons_count: true
+
+    // Retry logic for connection pool issues
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const fetchPromise = prisma.topic.findUnique({
+                where: { id },
+                select: {
+                    id: true, title: true, description: true, thumbnail: true,
+                    pros_label: true, cons_label: true,
+                    pros_count: true, cons_count: true
+                }
+            });
+
+            // Increase timeout to 12s for the actual prisma call
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("DB_TIMEOUT")), 12000)
+            );
+
+            const topic = await Promise.race([fetchPromise, timeoutPromise]) as any;
+            if (!topic) {
+                console.log(`[getTopicBase] 2. Topic NOT FOUND: ${id}`);
+                return null;
             }
-        });
-
-        // Timeout of 15 seconds for the base data
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("DB_CONNECTION_TIMEOUT_15S")), 15000)
-        );
-
-        const topic = await Promise.race([fetchPromise, timeoutPromise]) as any;
-        if (!topic) {
-            console.log(`[getTopicBase] 2. Topic NOT FOUND: ${id}`);
-            return null;
+            console.log(`[getTopicBase] 2. Success: ${topic.title}`);
+            return topic;
+        } catch (e: any) {
+            console.warn(`[getTopicBase] Attempt ${attempt} failed:`, e.message);
+            if (attempt === 1 && e.code === 'P2024') {
+                // Wait 500ms and try one last time if it's a pool timeout
+                console.log(`[getTopicBase] Retrying in 500ms...`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                continue;
+            }
+            throw e;
         }
-        console.log(`[getTopicBase] 2. Success: ${topic.title}`);
-        return topic;
-    } catch (e) {
-        console.error(`[getTopicBase] !!! Error:`, e);
-        return null;
     }
+    return null;
 });
 
 const getFullPageData = cache(async (id: string, userId?: string, sort: string = 'popular') => {
