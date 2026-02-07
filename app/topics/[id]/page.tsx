@@ -9,57 +9,65 @@ import { Metadata } from 'next';
 import SortTabs from './SortTabs';
 import LoadMoreButton from './LoadMoreButton';
 
-import { cache } from 'react';
+import { cache, Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 
-// Deduplicate DB calls between generateMetadata and TopicDetail
+// Optimization: Deduplication is handled by React's cache for server-side fetches within a single request
 const getTopicData = cache(async (id: string, currentUserId?: string, sort: string = 'popular') => {
-    console.log(`[getTopicData] Fetching topic: ${id}, sort: ${sort}`);
+    console.log(`[getTopicData] Fetching topic info: ${id}, user: ${currentUserId}, sort: ${sort}`);
+    try {
+        const getOrderBy = () => {
+            switch (sort) {
+                case 'latest': return [{ createdAt: 'desc' as const }];
+                case 'oldest': return [{ createdAt: 'asc' as const }];
+                case 'popular':
+                default: return [{ likes_count: 'desc' as const }, { createdAt: 'desc' as const }];
+            }
+        };
 
-    const getOrderBy = () => {
-        switch (sort) {
-            case 'latest': return [{ createdAt: 'desc' as const }];
-            case 'oldest': return [{ createdAt: 'asc' as const }];
-            case 'popular':
-            default: return [{ likes_count: 'desc' as const }, { createdAt: 'desc' as const }];
-        }
-    };
-
-    return await prisma.topic.findUnique({
-        where: { id },
-        include: {
-            opinions: {
-                // @ts-ignore
-                where: { parentId: null },
-                orderBy: getOrderBy(),
-                take: 11, // Take 11 to check if there's more
-                include: {
-                    user: true,
-                    ...(currentUserId ? {
-                        likes: { where: { userId: currentUserId } }
-                    } : {}),
+        return await prisma.topic.findUnique({
+            where: { id },
+            include: {
+                opinions: {
                     // @ts-ignore
-                    replies: {
-                        take: 5, // Limit initial replies to reduce query weight
-                        orderBy: { createdAt: 'asc' },
-                        include: {
-                            user: true,
-                            ...(currentUserId ? {
-                                likes: { where: { userId: currentUserId } }
-                            } : {}),
+                    where: { parentId: null },
+                    orderBy: getOrderBy(),
+                    take: 11,
+                    include: {
+                        user: true,
+                        ...(currentUserId ? {
+                            likes: { where: { userId: currentUserId } }
+                        } : {}),
+                        // @ts-ignore
+                        replies: {
+                            take: 5,
+                            orderBy: { createdAt: 'asc' },
+                            include: {
+                                user: true,
+                                ...(currentUserId ? {
+                                    likes: { where: { userId: currentUserId } }
+                                } : {}),
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } catch (e) {
+        console.error("[getTopicData] Error:", e);
+        return null;
+    }
 });
 
-// Optimization: Parallel fetching and simplified structure
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
     try {
-        const topic = await getTopicData(params.id);
+        // Only fetch minimal data for metadata to speed up initial load
+        const topic = await prisma.topic.findUnique({
+            where: { id: params.id },
+            select: { title: true, description: true }
+        });
+
         if (!topic) return { title: '주제를 찾을 수 없습니다' };
 
         return {
@@ -129,7 +137,9 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
 
                 <DebateClient topic={topic as any} />
 
-                <SortTabs topicId={params.id} />
+                <Suspense fallback={<div style={{ textAlign: 'center', padding: '1rem' }}>정렬 옵션 불러오는 중...</div>}>
+                    <SortTabs topicId={params.id} />
+                </Suspense>
 
                 <div className="split-layout">
                     <div className="split-col">
