@@ -20,7 +20,7 @@ export default function AdSense({ adSlot, adFormat = 'auto', fullWidthResponsive
     }, []);
 
     return (
-        <div style={{ margin: '2rem 0', textAlign: 'center', overflow: 'hidden', ...style }}>
+        <div style={{ margin: '1rem 0', textAlign: 'center', overflow: 'hidden', ...style }}>
             <ins
                 className="adsbygoogle"
                 style={{ display: 'block' }}
