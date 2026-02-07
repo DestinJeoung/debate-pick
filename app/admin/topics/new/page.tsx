@@ -25,7 +25,7 @@ export default function NewTopicPage() {
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [lastKeyword, setLastKeyword] = useState('debate');
 
-    const suggestAiImage = async () => {
+    const generateTextBanner = async () => {
         const titleInput = document.getElementsByName('title')[0] as HTMLInputElement;
         const title = titleInput?.value;
         if (!title) {
@@ -35,88 +35,33 @@ export default function NewTopicPage() {
 
         setIsAiLoading(true);
 
-        // Multi-keyword translation map for better relevance
-        const translationMap: Record<string, string> = {
-            '노키즈존': 'No Kids Zone restaurant',
-            '민트초코': 'Mint chocolate ice cream',
-            '갤럭시': 'modern smartphone phone',
-            '아이폰': 'modern smartphone phone',
-            '라면': 'Korean spicy ramen bowl',
-            '고양이': 'cute cat kitten',
-            '강아지': 'cute dog puppy',
-            '연애': 'romantic couple holding hands',
-            '결혼': 'wedding rings on table',
-            '탕수육': 'Korean sweet and sour pork',
-            '부먹': 'pouring sauce',
-            '찍먹': 'dipping into sauce',
-            '과거': 'vintage old timeless pocket watch clock',
-            '미래': 'futuristic neon scifi cityscape',
-            '초능력': 'superhero glowing energy hands',
-            '부먹 vs 찍먹': 'Two different styles of eating sweet and sour pork, pouring vs dipping',
-            '짜장': 'Korean black bean noodles Jajangmyeon',
-            '짬뽕': 'Korean spicy seafood noodle Jjamppong',
-            '맥주': 'cold beer glass mug',
-            '소주': 'Korean soju bottle and glass',
-            '산': 'beautiful high mountain forest',
-            '바다': 'sunny tropical ocean beach',
-            '여름': 'hot sunny summer beach',
-            '겨울': 'snowy winter forest',
-            '공부': 'student studying at desk',
-            '게임': 'gamer playing video games',
-            '운동': 'athlete exercising in gym',
-        };
+        // Professional color palettes
+        const colors = [
+            { bg: '3b82f6', text: 'white' }, // Blue
+            { bg: '10b981', text: 'white' }, // Green
+            { bg: '8b5cf6', text: 'white' }, // Purple
+            { bg: 'f59e0b', text: 'white' }, // Orange
+            { bg: '0f172a', text: 'white' }, // Dark Blue
+            { bg: 'ef4444', text: 'white' }, // Red
+        ];
+        const palette = colors[Math.floor(Math.random() * colors.length)];
 
-        // Try to build a descriptive prompt
-        let visualDescription = '';
+        // Clean up title for banner (max 30 chars for readability)
+        const bannerText = title.length > 30 ? title.substring(0, 27) + '...' : title;
+        const encodedText = encodeURIComponent(bannerText);
 
-        // Handle "vs" topics specifically
-        if (title.toLowerCase().includes('vs')) {
-            const parts = title.split(/vs/i);
-            const part1 = parts[0].trim();
-            const part2 = parts[1].trim();
+        const bannerUrl = `https://placehold.co/800x450/${palette.bg}/${palette.text}?text=${encodedText}`;
 
-            const trans1 = translationMap[part1] || part1;
-            const trans2 = translationMap[part2] || part2;
+        // Short delay for "generation" effect
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-            // If it's still Korean, just use the translationMap again or general terms
-            const final1 = translationMap[part1] || "first concept";
-            const final2 = translationMap[part2] || "second concept";
-
-            visualDescription = `Comparison of ${final1} on the left and ${final2} on the right, versus conceptual art`;
-        } else {
-            // Find any matching keyword
-            for (const [ko, en] of Object.entries(translationMap)) {
-                if (title.includes(ko)) {
-                    visualDescription = en;
-                    break;
-                }
-            }
-            if (!visualDescription) {
-                visualDescription = "conceptual social debate topic";
-            }
-        }
-
-        setLastKeyword(visualDescription);
-
-        // Construct high-quality descriptive prompt
-        const fullPrompt = `${visualDescription}, professional digital art, vibrant colors, cinematic shading, high quality 3d render style, minimalist background, website thumbnail banner`;
-        const prompt = encodeURIComponent(fullPrompt);
-
-        // Finalized stable URL with Flux model
-        const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&model=flux&nologo=true&seed=${Math.floor(Math.random() * 9999999)}`;
-
-        console.log("Generating v7 AI Image:", generatedUrl);
-
-        // Slightly longer delay for "AI-like" experience
-        await new Promise(resolve => setTimeout(resolve, 1200));
-
-        setThumbUrl(generatedUrl);
+        setThumbUrl(bannerUrl);
         setIsAiLoading(false);
     };
 
     return (
         <div className="container" style={{ maxWidth: '600px' }}>
-            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v7)</span></h1>
+            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v8)</span></h1>
             <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem' }}>제목</label>
@@ -137,11 +82,11 @@ export default function NewTopicPage() {
                         썸네일 URL (선택)
                         <button
                             type="button"
-                            onClick={suggestAiImage}
+                            onClick={generateTextBanner}
                             disabled={isAiLoading}
                             style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '0.8rem' }}
                         >
-                            {isAiLoading ? 'AI 분석 중...' : '✨ AI 이미지 추천받기'}
+                            {isAiLoading ? '배너 생성 중...' : '✨ 깔끔한 텍스트 배너 추천'}
                         </button>
                     </label>
                     <input
@@ -155,25 +100,15 @@ export default function NewTopicPage() {
                     {thumbUrl && (
                         <div style={{ marginTop: '1rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '0.5rem' }}>
-                                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>AI 생성 결과 (v6)</p>
-                                <a href={thumbUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#3b82f6' }}>이미지 직접 확인 ↗</a>
+                                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>배너 미리보기 (v8)</p>
                             </div>
                             <img
                                 src={thumbUrl}
                                 alt="Thumbnail preview"
                                 style={{ width: '100%', height: '240px', objectFit: 'cover', background: '#1e293b' }}
-                                onError={(e) => {
-                                    console.error("AI load failed, trying fallback:", thumbUrl);
-                                    const img = e.target as HTMLImageElement;
-                                    // Robust fallback to LoremFlickr with specific keyword
-                                    if (!img.src.includes('loremflickr')) {
-                                        const keyword = lastKeyword.split(' ')[0] || 'debate';
-                                        img.src = `https://loremflickr.com/800/450/${encodeURIComponent(keyword)}?lock=${Math.floor(Math.random() * 100)}`;
-                                    }
-                                }}
                             />
                             <p style={{ fontSize: '0.7rem', padding: '0.5rem', color: '#94a3b8', background: '#1e293b', margin: 0, textAlign: 'center' }}>
-                                추천 이미지가 마음에 안 들면 다시 버튼을 눌러보세요.
+                                마음에 안 들면 다시 버튼을 눌러보세요. 색상이 무작위로 변경됩니다.
                             </p>
                         </div>
                     )}
