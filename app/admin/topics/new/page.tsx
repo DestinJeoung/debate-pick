@@ -37,31 +37,64 @@ export default function NewTopicPage() {
 
         // Professional color palettes
         const colors = [
-            { bg: '3b82f6', text: 'white' }, // Blue
-            { bg: '10b981', text: 'white' }, // Green
-            { bg: '8b5cf6', text: 'white' }, // Purple
-            { bg: 'f59e0b', text: 'white' }, // Orange
-            { bg: '0f172a', text: 'white' }, // Dark Blue
-            { bg: 'ef4444', text: 'white' }, // Red
+            { bg: '#3b82f6', text: 'white' }, // Blue
+            { bg: '#10b981', text: 'white' }, // Green
+            { bg: '#8b5cf6', text: 'white' }, // Purple
+            { bg: '#f59e0b', text: 'white' }, // Orange
+            { bg: '#0f172a', text: 'white' }, // Dark Blue
+            { bg: '#ef4444', text: 'white' }, // Red
         ];
         const palette = colors[Math.floor(Math.random() * colors.length)];
 
-        // Clean up title for banner (max 30 chars for readability)
-        const bannerText = title.length > 30 ? title.substring(0, 27) + '...' : title;
-        const encodedText = encodeURIComponent(bannerText);
+        // Use Canvas to generate a high-quality Korean text banner
+        const canvas = document.createElement('canvas');
+        canvas.width = 800;
+        canvas.height = 450;
+        const ctx = canvas.getContext('2d');
 
-        const bannerUrl = `https://placehold.co/800x450/${palette.bg}/${palette.text}?text=${encodedText}`;
+        if (ctx) {
+            // Background
+            ctx.fillStyle = palette.bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Short delay for "generation" effect
-        await new Promise(resolve => setTimeout(resolve, 500));
+            // Text settings
+            ctx.fillStyle = palette.text;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
 
-        setThumbUrl(bannerUrl);
+            // Draw title with automatic font resizing
+            const fontSize = title.length > 10 ? 60 : 80;
+            ctx.font = `bold ${fontSize}px Inter, sans-serif, "Apple SD Gothic Neo", "Malgun Gothic"`;
+
+            // Handle multi-line if too long
+            if (title.length > 15) {
+                const mid = Math.ceil(title.length / 2);
+                const line1 = title.substring(0, mid);
+                const line2 = title.substring(mid);
+                ctx.fillText(line1, canvas.width / 2, canvas.height / 2 - 40);
+                ctx.fillText(line2, canvas.width / 2, canvas.height / 2 + 40);
+            } else {
+                ctx.fillText(title, canvas.width / 2, canvas.height / 2);
+            }
+
+            // Banner Subtitle
+            ctx.font = '24px Inter, sans-serif';
+            ctx.globalAlpha = 0.7;
+            ctx.fillText('DEBATE PICK TOPIC', canvas.width / 2, canvas.height - 50);
+
+            const bannerUrl = canvas.toDataURL('image/png');
+
+            // Short delay for UX
+            await new Promise(resolve => setTimeout(resolve, 300));
+            setThumbUrl(bannerUrl);
+        }
+
         setIsAiLoading(false);
     };
 
     return (
         <div className="container" style={{ maxWidth: '600px' }}>
-            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v8)</span></h1>
+            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v9)</span></h1>
             <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem' }}>제목</label>
@@ -86,7 +119,7 @@ export default function NewTopicPage() {
                             disabled={isAiLoading}
                             style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '0.8rem' }}
                         >
-                            {isAiLoading ? '배너 생성 중...' : '✨ 깔끔한 텍스트 배너 추천'}
+                            {isAiLoading ? '배너 생성 중...' : '✨ 한글 텍스트 배너 추천'}
                         </button>
                     </label>
                     <input
@@ -100,7 +133,7 @@ export default function NewTopicPage() {
                     {thumbUrl && (
                         <div style={{ marginTop: '1rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '0.5rem' }}>
-                                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>배너 미리보기 (v8)</p>
+                                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>배너 미리보기 (v9 - 한글 지원)</p>
                             </div>
                             <img
                                 src={thumbUrl}
@@ -108,7 +141,7 @@ export default function NewTopicPage() {
                                 style={{ width: '100%', height: '240px', objectFit: 'cover', background: '#1e293b' }}
                             />
                             <p style={{ fontSize: '0.7rem', padding: '0.5rem', color: '#94a3b8', background: '#1e293b', margin: 0, textAlign: 'center' }}>
-                                마음에 안 들면 다시 버튼을 눌러보세요. 색상이 무작위로 변경됩니다.
+                                제목을 입력하고 버튼을 누르면 한글 제목이 포함된 배너가 생성됩니다.
                             </p>
                         </div>
                     )}
