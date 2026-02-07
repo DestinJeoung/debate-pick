@@ -23,17 +23,22 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                 ],
                 include: {
                     user: true,
-                    likes: currentUserId ? {
-                        where: { userId: currentUserId }
-                    } : false,
+                    // Use spread to conditionally include the 'likes' field
+                    ...(currentUserId ? {
+                        likes: {
+                            where: { userId: currentUserId }
+                        }
+                    } : {}),
                     // @ts-ignore
                     replies: {
                         orderBy: { createdAt: 'asc' },
                         include: {
                             user: true,
-                            likes: currentUserId ? {
-                                where: { userId: currentUserId }
-                            } : false,
+                            ...(currentUserId ? {
+                                likes: {
+                                    where: { userId: currentUserId }
+                                }
+                            } : {}),
                         }
                     }
                 }
@@ -77,7 +82,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                         <OpinionCard
                             key={op.id}
                             opinion={op}
-                            initialIsLiked={op.likes.length > 0}
+                            initialIsLiked={op.likes ? op.likes.length > 0 : false}
                             borderColorClass="border-pros"
                             topicId={params.id}
                         />
@@ -93,7 +98,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                         <OpinionCard
                             key={op.id}
                             opinion={op}
-                            initialIsLiked={op.likes.length > 0}
+                            initialIsLiked={op.likes ? op.likes.length > 0 : false}
                             borderColorClass="border-cons"
                             topicId={params.id}
                         />
