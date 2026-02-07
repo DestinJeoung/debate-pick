@@ -14,11 +14,12 @@ model User {
   password    String    // In real app, hash this!
   nickname    String
   role        String    @default("USER") // "USER" or "ADMIN"
-  profile_img String?
-  createdAt   DateTime  @default(now())
-  opinions    Opinion[]
-  likes       OpinionLike[]
-  suggestions TopicSuggestion[]
+  profile_img        String?
+  createdAt          DateTime  @default(now())
+  lastNicknameUpdate DateTime? // For 30-day cooldown
+  opinions           Opinion[]
+  likes              OpinionLike[]
+  suggestions        TopicSuggestion[]
 
   @@map("users")
 }
@@ -57,8 +58,9 @@ model Opinion {
   userId      String
   side        String   // "PROS" or "CONS"
   content     String
-  likes_count Int      @default(0)
-  createdAt   DateTime @default(now())
+  likes_count Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
   parentId    String?
   parent      Opinion? @relation("OpinionReplies", fields: [parentId], references: [id])
   replies     Opinion[] @relation("OpinionReplies")

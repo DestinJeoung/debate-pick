@@ -104,3 +104,38 @@ export async function submitReply(prevState: any, formData: FormData) {
         return { message: 'Database Error' };
     }
 }
+
+export async function editOpinion(prevState: any, formData: FormData) {
+    const topicId = formData.get('topicId') as string;
+    const opinionId = formData.get('opinionId') as string;
+    const content = formData.get('content') as string;
+
+    const session = await getSession();
+    if (!session) return { message: '로그인이 필요합니다.' };
+
+    if (!content || !opinionId || !topicId) {
+        return { message: 'Missing fields' };
+    }
+
+    try {
+        const opinion = await prisma.opinion.findUnique({
+            where: { id: opinionId },
+            select: { userId: true }
+        });
+
+        if (!opinion || opinion.userId !== session.userId) {
+            return { message: '권한이 없습니다.' };
+        }
+
+        await prisma.opinion.update({
+            where: { id: opinionId },
+            data: { content },
+        });
+
+        revalidatePath(`/topics/${topicId}`);
+        return { message: 'Success' };
+    } catch (e) {
+        console.error(e);
+        return { message: 'Database Error' };
+    }
+}

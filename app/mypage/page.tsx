@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
 import SuggestionForm from './SuggestionForm';
+import NicknameForm from './NicknameForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,8 @@ export default async function MyPage() {
                             {(user as any).role}
                         </div>
                     </div>
+
+                    <NicknameForm currentNickname={user.nickname} lastUpdate={(user as any).lastNicknameUpdate} />
 
                     <div className="card" style={{ padding: '1.5rem' }}>
                         <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>활동 요약</h3>

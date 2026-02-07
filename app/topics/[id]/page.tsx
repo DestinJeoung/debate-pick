@@ -85,6 +85,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                             initialIsLiked={op.likes ? op.likes.length > 0 : false}
                             borderColorClass="border-pros"
                             topicId={params.id}
+                            currentUserId={currentUserId}
                         />
                     ))}
                     {prosOpinions.length === 0 && <p style={{ textAlign: 'center', color: '#666' }}>등록된 의견이 없습니다.</p>}
@@ -101,6 +102,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                             initialIsLiked={op.likes ? op.likes.length > 0 : false}
                             borderColorClass="border-cons"
                             topicId={params.id}
+                            currentUserId={currentUserId}
                         />
                     ))}
                     {consOpinions.length === 0 && <p style={{ textAlign: 'center', color: '#666' }}>등록된 의견이 없습니다.</p>}
