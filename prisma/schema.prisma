@@ -49,6 +49,7 @@ model Topic {
   createdAt   DateTime  @default(now())
   opinions    Opinion[]
 
+  @@index([createdAt(desc)])
   @@map("topics")
 }
 
@@ -71,6 +72,8 @@ model Opinion {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   likes       OpinionLike[]
 
+  @@index([topicId, side, parentId, likes_count(desc), createdAt(desc)]) // Composite index for TopicDetail
+  @@index([createdAt(desc)]) // Global feed optimization
   @@map("opinions")
 }
 

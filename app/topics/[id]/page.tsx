@@ -6,17 +6,24 @@ import { getSession } from '@/lib/session';
 import ShareButton from './ShareButton';
 import AdSense from '@/components/AdSense';
 import { Metadata } from 'next';
-import Script from 'next/script';
 
 export const dynamic = 'force-dynamic';
+
+// Helper for timeout
+const withTimeout = <T,>(promise: Promise<T>, ms: number = 5000): Promise<T> => {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), ms))
+    ]);
+};
 
 // Extreme Optimization: Splitting queries to prevent connection timeout
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
     try {
-        const topic = await prisma.topic.findUnique({
+        const topic = await withTimeout(prisma.topic.findUnique({
             where: { id: params.id },
             select: { title: true, description: true }
-        });
+        }));
 
         if (!topic) return { title: '주제를 찾을 수 없습니다 | Debate Pick' };
 
@@ -45,26 +52,23 @@ export default async function TopicDetail({ params }: { params: { id: string } }
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
-        console.time(`[TopicDetail] Fetch Topic Metadata ${params.id}`);
         // 1. Fetch Topic metadata ONLY (Lightweight)
-        const topic = await prisma.topic.findUnique({
+        const topic = await withTimeout(prisma.topic.findUnique({
             where: { id: params.id },
             include: {
                 _count: {
                     select: { opinions: true }
                 }
             }
-        });
-        console.timeEnd(`[TopicDetail] Fetch Topic Metadata ${params.id}`);
+        }));
 
         if (!topic) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
         }
 
-        console.time(`[TopicDetail] Fetch Pros Opinions ${params.id}`);
         // 2. Fetch specific opinions separately (Avoid massive JOINs)
         // Fetch top 10 Pros
-        const prosOpinions = await prisma.opinion.findMany({
+        const prosOpinions = await withTimeout(prisma.opinion.findMany({
             where: {
                 topicId: params.id,
                 side: 'PROS',
@@ -83,12 +87,10 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                     }
                 }
             }
-        });
-        console.timeEnd(`[TopicDetail] Fetch Pros Opinions ${params.id}`);
+        }));
 
-        console.time(`[TopicDetail] Fetch Cons Opinions ${params.id}`);
         // Fetch top 10 Cons
-        const consOpinions = await prisma.opinion.findMany({
+        const consOpinions = await withTimeout(prisma.opinion.findMany({
             where: {
                 topicId: params.id,
                 side: 'CONS',
@@ -107,18 +109,15 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                     }
                 }
             }
-        });
-        console.timeEnd(`[TopicDetail] Fetch Cons Opinions ${params.id}`);
+        }));
 
-        console.time(`[TopicDetail] Fetch Related Topics ${params.id}`);
         // 3. Fetch related topics (Optional, can fail)
-        const relatedTopics = await prisma.topic.findMany({
+        const relatedTopics = await withTimeout(prisma.topic.findMany({
             where: { NOT: { id: params.id } },
             take: 4,
             orderBy: { createdAt: 'desc' },
             select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
-        });
-        console.timeEnd(`[TopicDetail] Fetch Related Topics ${params.id}`);
+        }));
 
         return (
             <div className="container">
@@ -152,6 +151,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                                 initialIsLiked={op.likes && op.likes.length > 0}
                                 borderColorClass="border-pros"
                                 topicId={params.id}
+                                isReply={false}
                                 currentUserId={currentUserId}
                                 isAdmin={isAdmin}
                             />
@@ -169,6 +169,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                                 initialIsLiked={op.likes && op.likes.length > 0}
                                 borderColorClass="border-cons"
                                 topicId={params.id}
+                                isReply={false}
                                 currentUserId={currentUserId}
                                 isAdmin={isAdmin}
                             />
