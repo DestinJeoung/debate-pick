@@ -30,13 +30,17 @@ const getTopicBase = cache(async (id: string) => {
             }
         });
 
-        // Timeout of 8 seconds for the base data
+        // Timeout of 15 seconds for the base data
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("DB_TIMEOUT")), 8000)
+            setTimeout(() => reject(new Error("DB_CONNECTION_TIMEOUT_15S")), 15000)
         );
 
         const topic = await Promise.race([fetchPromise, timeoutPromise]) as any;
-        console.log(`[getTopicBase] 2. Success: ${topic?.title || 'Not Found'}`);
+        if (!topic) {
+            console.log(`[getTopicBase] 2. Topic NOT FOUND: ${id}`);
+            return null;
+        }
+        console.log(`[getTopicBase] 2. Success: ${topic.title}`);
         return topic;
     } catch (e) {
         console.error(`[getTopicBase] !!! Error:`, e);
