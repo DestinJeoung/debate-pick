@@ -35,52 +35,80 @@ export default function NewTopicPage() {
 
         setIsAiLoading(true);
 
-        // Simple translation map for better AI understanding and avoiding character issues
+        // Multi-keyword translation map for better relevance
         const translationMap: Record<string, string> = {
-            '노키즈존': 'No Kids Zone, sign on restaurant door',
-            '민트초코': 'Mint Chocolate ice cream',
-            '갤럭시': 'Samsung Galaxy smartphone',
-            '아이폰': 'Apple iPhone smartphone',
-            '라면': 'Delicious Korean Ramen bowl',
-            '고양이': 'Cute cat',
-            '강아지': 'Cute dog',
-            '연애': 'Couple dating',
-            '결혼': 'Wedding rings',
+            '노키즈존': 'No Kids Zone restaurant',
+            '민트초코': 'Mint chocolate ice cream',
+            '갤럭시': 'modern smartphone phone',
+            '아이폰': 'modern smartphone phone',
+            '라면': 'Korean spicy ramen bowl',
+            '고양이': 'cute cat kitten',
+            '강아지': 'cute dog puppy',
+            '연애': 'romantic couple holding hands',
+            '결혼': 'wedding rings on table',
             '탕수육': 'Korean sweet and sour pork',
-            '부먹': 'pouring sauce on food',
-            '찍먹': 'dipping food into sauce',
-            '과거': 'Time travel to the past',
-            '미래': 'Vision of the future',
-            '초능력': 'Mystical superpower glow',
+            '부먹': 'pouring sauce',
+            '찍먹': 'dipping into sauce',
+            '과거': 'vintage old timeless pocket watch clock',
+            '미래': 'futuristic neon scifi cityscape',
+            '초능력': 'superhero glowing energy hands',
+            '부먹 vs 찍먹': 'Two different styles of eating sweet and sour pork, pouring vs dipping',
+            '짜장': 'Korean black bean noodles Jajangmyeon',
+            '짬뽕': 'Korean spicy seafood noodle Jjamppong',
+            '맥주': 'cold beer glass mug',
+            '소주': 'Korean soju bottle and glass',
+            '산': 'beautiful high mountain forest',
+            '바다': 'sunny tropical ocean beach',
+            '여름': 'hot sunny summer beach',
+            '겨울': 'snowy winter forest',
+            '공부': 'student studying at desk',
+            '게임': 'gamer playing video games',
+            '운동': 'athlete exercising in gym',
         };
 
-        let translatedTitle = title;
-        for (const [ko, en] of Object.entries(translationMap)) {
-            if (title.includes(ko)) {
-                translatedTitle = en;
-                break;
+        // Try to build a descriptive prompt
+        let visualDescription = '';
+
+        // Handle "vs" topics specifically
+        if (title.toLowerCase().includes('vs')) {
+            const parts = title.split(/vs/i);
+            const part1 = parts[0].trim();
+            const part2 = parts[1].trim();
+
+            const trans1 = translationMap[part1] || part1;
+            const trans2 = translationMap[part2] || part2;
+
+            // If it's still Korean, just use the translationMap again or general terms
+            const final1 = translationMap[part1] || "first concept";
+            const final2 = translationMap[part2] || "second concept";
+
+            visualDescription = `Comparison of ${final1} on the left and ${final2} on the right, versus conceptual art`;
+        } else {
+            // Find any matching keyword
+            for (const [ko, en] of Object.entries(translationMap)) {
+                if (title.includes(ko)) {
+                    visualDescription = en;
+                    break;
+                }
+            }
+            if (!visualDescription) {
+                visualDescription = "conceptual social debate topic";
             }
         }
 
-        // If no translation found and it's mostly Korean, add a general context
-        if (translatedTitle === title && /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(title)) {
-            translatedTitle = "social debate topic concept";
-        }
+        setLastKeyword(visualDescription);
 
-        setLastKeyword(translatedTitle); // Store for fallback logic
-
-        // Primary generative AI endpoint (Pollinations)
-        // Using 'flux' model which is more robust
-        const cleanPrompt = translatedTitle.replace(/[^a-zA-Z0-9 ]/g, '');
-        const prompt = encodeURIComponent(cleanPrompt + " professional digital art thumbnail");
+        // Construct high-quality descriptive prompt
+        const fullPrompt = `${visualDescription}, professional digital art, vibrant colors, cinematic shading, high quality 3d render style, minimalist background, website thumbnail banner`;
+        const prompt = encodeURIComponent(fullPrompt);
 
         // Finalized stable URL with Flux model
-        const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&model=flux&nologo=true&seed=${Math.floor(Math.random() * 999999)}`;
+        const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&model=flux&nologo=true&seed=${Math.floor(Math.random() * 9999999)}`;
 
-        console.log("Attempting AI flux Generation:", generatedUrl);
+        console.log("Generating v7 AI Image:", generatedUrl);
 
-        // Simulate AI generation process with a slightly longer delay for quality
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Slightly longer delay for "AI-like" experience
+        await new Promise(resolve => setTimeout(resolve, 1200));
 
         setThumbUrl(generatedUrl);
         setIsAiLoading(false);
@@ -88,7 +116,7 @@ export default function NewTopicPage() {
 
     return (
         <div className="container" style={{ maxWidth: '600px' }}>
-            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v6)</span></h1>
+            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v7)</span></h1>
             <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem' }}>제목</label>
