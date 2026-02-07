@@ -9,16 +9,57 @@ import { Metadata } from 'next';
 import SortTabs from './SortTabs';
 import LoadMoreButton from './LoadMoreButton';
 
+import { cache } from 'react';
+
 export const dynamic = 'force-dynamic';
+
+// Deduplicate DB calls between generateMetadata and TopicDetail
+const getTopicData = cache(async (id: string, currentUserId?: string, sort: string = 'popular') => {
+    console.log(`[getTopicData] Fetching topic: ${id}, sort: ${sort}`);
+
+    const getOrderBy = () => {
+        switch (sort) {
+            case 'latest': return [{ createdAt: 'desc' as const }];
+            case 'oldest': return [{ createdAt: 'asc' as const }];
+            case 'popular':
+            default: return [{ likes_count: 'desc' as const }, { createdAt: 'desc' as const }];
+        }
+    };
+
+    return await prisma.topic.findUnique({
+        where: { id },
+        include: {
+            opinions: {
+                // @ts-ignore
+                where: { parentId: null },
+                orderBy: getOrderBy(),
+                take: 11, // Take 11 to check if there's more
+                include: {
+                    user: true,
+                    ...(currentUserId ? {
+                        likes: { where: { userId: currentUserId } }
+                    } : {}),
+                    // @ts-ignore
+                    replies: {
+                        take: 5, // Limit initial replies to reduce query weight
+                        orderBy: { createdAt: 'asc' },
+                        include: {
+                            user: true,
+                            ...(currentUserId ? {
+                                likes: { where: { userId: currentUserId } }
+                            } : {}),
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
 
 // Optimization: Parallel fetching and simplified structure
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
     try {
-        const topic = await prisma.topic.findUnique({
-            where: { id: params.id },
-            select: { title: true, description: true }
-        });
-
+        const topic = await getTopicData(params.id);
         if (!topic) return { title: '주제를 찾을 수 없습니다' };
 
         return {
@@ -33,63 +74,25 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function TopicDetail({ params, searchParams }: { params: { id: string }, searchParams: { sort?: string } }) {
     const sort = searchParams?.sort || 'popular';
-    console.log(`[TopicDetail] Loading topic: ${params.id}, sort: ${sort}`);
-
-    // Determine orderBy based on sort param
-    const getOrderBy = () => {
-        switch (sort) {
-            case 'latest':
-                return [{ createdAt: 'desc' as const }];
-            case 'oldest':
-                return [{ createdAt: 'asc' as const }];
-            case 'popular':
-            default:
-                return [{ likes_count: 'desc' as const }, { createdAt: 'desc' as const }];
-        }
-    };
 
     try {
         const session = await getSession();
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
-        console.time(`[TopicDetail] DB Fetch: ${params.id}`);
-        // Fetch everything in parallel
+        console.time(`[TopicDetail] Fetch: ${params.id}`);
+        // Fetch topic and related topics in parallel
+        // topic data is cached, relatedTopics is separate
         const [topic, relatedTopics] = await Promise.all([
-            prisma.topic.findUnique({
-                where: { id: params.id },
-                include: {
-                    opinions: {
-                        // @ts-ignore
-                        where: { parentId: null },
-                        orderBy: getOrderBy(),
-                        take: 10, // Initial load - pagination
-                        include: {
-                            user: true,
-                            ...(currentUserId ? {
-                                likes: { where: { userId: currentUserId } }
-                            } : {}),
-                            // @ts-ignore
-                            replies: {
-                                orderBy: { createdAt: 'asc' },
-                                include: {
-                                    user: true,
-                                    ...(currentUserId ? {
-                                        likes: { where: { userId: currentUserId } }
-                                    } : {}),
-                                }
-                            }
-                        }
-                    }
-                }
-            }),
+            getTopicData(params.id, currentUserId, sort),
             prisma.topic.findMany({
                 where: { NOT: { id: params.id } },
                 take: 4,
-                orderBy: { createdAt: 'desc' }
+                orderBy: { createdAt: 'desc' },
+                select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
             })
         ]);
-        console.timeEnd(`[TopicDetail] DB Fetch: ${params.id}`);
+        console.timeEnd(`[TopicDetail] Fetch: ${params.id}`);
 
         if (!topic) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
@@ -99,11 +102,15 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
         const prosOpinions = opinions.filter((o: any) => o.side === 'PROS');
         const consOpinions = opinions.filter((o: any) => o.side === 'CONS');
 
-        // Check if there are more opinions for pagination
-        const prosHasMore = prosOpinions.length >= 10;
-        const consHasMore = consOpinions.length >= 10;
-        const prosCursor = prosOpinions.length > 0 ? prosOpinions[prosOpinions.length - 1].id : null;
-        const consCursor = consOpinions.length > 0 ? consOpinions[consOpinions.length - 1].id : null;
+        // Check if there are more opinions for pagination (take 11 logic)
+        const prosHasMore = prosOpinions.length === 11;
+        const consHasMore = consOpinions.length === 11;
+
+        const prosToDisplay = prosHasMore ? prosOpinions.slice(0, 10) : prosOpinions;
+        const consToDisplay = consHasMore ? consOpinions.slice(0, 10) : consOpinions;
+
+        const prosCursor = prosToDisplay.length > 0 ? prosToDisplay[prosToDisplay.length - 1].id : null;
+        const consCursor = consToDisplay.length > 0 ? consToDisplay[consToDisplay.length - 1].id : null;
 
         return (
             <div className="container">
@@ -130,9 +137,9 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
                 <div className="split-layout">
                     <div className="split-col">
                         <div className="col-header header-pros">
-                            {topic.pros_label} 의견 ({prosOpinions.length})
+                            {topic.pros_label} 의견 ({topic.pros_count})
                         </div>
-                        {prosOpinions.map((op: any) => (
+                        {prosToDisplay.map((op: any) => (
                             <OpinionCard
                                 key={op.id}
                                 opinion={op}
@@ -156,9 +163,9 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
 
                     <div className="split-col">
                         <div className="col-header header-cons">
-                            {topic.cons_label} 의견 ({consOpinions.length})
+                            {topic.cons_label} 의견 ({topic.cons_count})
                         </div>
-                        {consOpinions.map((op: any) => (
+                        {consToDisplay.map((op: any) => (
                             <OpinionCard
                                 key={op.id}
                                 opinion={op}
