@@ -34,14 +34,42 @@ export default function NewTopicPage() {
 
         setIsAiLoading(true);
 
-        // Use a generative AI service (Pollinations.ai) to create a unique image
-        // We encode the title and specific context as a prompt for the AI
-        const promptContext = `A professional, high-quality website thumbnail for a debate platform. Centered artistic composition about: ${title}. Use cinematic lighting, 3D render style, 8k resolution, vibrant colors, clean design suitable for a community banner.`;
+        // Simple translation map for better AI understanding and avoiding character issues
+        const translationMap: Record<string, string> = {
+            '노키즈존': 'No Kids Zone, sign on restaurant door',
+            '민트초코': 'Mint Chocolate ice cream',
+            '갤럭시': 'Samsung Galaxy smartphone',
+            '아이폰': 'Apple iPhone smartphone',
+            '라면': 'Delicious Korean Ramen bowl',
+            '고양이': 'Cute cat',
+            '강아지': 'Cute dog',
+            '연애': 'Couple dating',
+            '결혼': 'Wedding rings',
+            '탕수육': 'Korean sweet and sour pork',
+            '부먹': 'pouring sauce on food',
+            '찍먹': 'dipping food into sauce',
+        };
+
+        let translatedTitle = title;
+        for (const [ko, en] of Object.entries(translationMap)) {
+            if (title.includes(ko)) {
+                translatedTitle = en;
+                break;
+            }
+        }
+
+        // If no translation found and it's mostly Korean, add a general context
+        if (translatedTitle === title && /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(title)) {
+            translatedTitle = "social debate topic concept";
+        }
+
+        // Optimized prompt: Concise and optimized for Pollinations.ai
+        const promptContext = `professional website banner, debate topic: ${translatedTitle}, 3d render, cinematic lighting, high resolution, minimalist`;
         const prompt = encodeURIComponent(promptContext);
         const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&nologo=true&seed=${Math.floor(Math.random() * 1000)}`;
 
         // Simulate AI generation process with a delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         setThumbUrl(generatedUrl);
         setIsAiLoading(false);
