@@ -48,6 +48,9 @@ export default function NewTopicPage() {
             '탕수육': 'Korean sweet and sour pork',
             '부먹': 'pouring sauce on food',
             '찍먹': 'dipping food into sauce',
+            '과거': 'Time travel to the past',
+            '미래': 'Vision of the future',
+            '초능력': 'Mystical superpower glow',
         };
 
         let translatedTitle = title;
@@ -63,15 +66,14 @@ export default function NewTopicPage() {
             translatedTitle = "social debate topic concept";
         }
 
-        // Optimized prompt: Extremely simple to ensure the AI service doesn't reject it
-        // We only use the translated keyword for maximum stability
-        const promptContext = `${translatedTitle} 3d art thumbnail`;
+        // Unified API endpoint: gen.pollinations.ai/image/
+        const promptContext = `${translatedTitle} artistic thumbnail`;
         const prompt = encodeURIComponent(promptContext);
 
-        // Correct endpoint for direct images: image.pollinations.ai/prompt/
-        const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
+        // New unified endpoint structure
+        const generatedUrl = `https://gen.pollinations.ai/image/${prompt}?width=800&height=450&nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
 
-        console.log("Final AI Image URL:", generatedUrl);
+        console.log("Unified AI Image URL:", generatedUrl);
 
         // Simulate AI generation process with a delay
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -82,7 +84,7 @@ export default function NewTopicPage() {
 
     return (
         <div className="container" style={{ maxWidth: '600px' }}>
-            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기</h1>
+            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v4)</span></h1>
             <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem' }}>제목</label>
