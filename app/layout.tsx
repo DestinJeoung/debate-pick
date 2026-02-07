@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
     title: 'Debate Pick - 당신의 선택과 의견을 나누는 토론 플랫폼',
@@ -69,6 +70,7 @@ export default async function RootLayout({
                         <Link href="/terms">이용약관</Link>
                     </div>
                 </footer>
+                <Analytics />
             </body>
         </html>
     );
