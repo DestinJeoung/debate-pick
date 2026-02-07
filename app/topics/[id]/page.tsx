@@ -49,159 +49,158 @@ export default async function TopicDetail({ params }: { params: { id: string } }
     console.log(`[TopicDetail] Loading topic: ${params.id}`);
     console.time(`TopicQuery-${params.id}`);
 
-    try {
-        const session = await getSession();
-        const currentUserId = session?.userId;
-        const isAdmin = session?.role === 'ADMIN';
+    // try-catch removed to allow error.tsx to handle failures
+    // console.log(`[TopicDetail] Loading topic: ${params.id}`); // Logged at start
 
-        // Execute all queries in parallel for maximum speed
-        const [topic, prosOpinions, consOpinions, relatedTopics] = await withTimeout(Promise.all([
-            // 1. Fetch Topic metadata
-            prisma.topic.findUnique({
-                where: { id: params.id },
-                include: {
-                    _count: {
-                        select: { opinions: true }
+    const session = await getSession();
+    const currentUserId = session?.userId;
+    const isAdmin = session?.role === 'ADMIN';
+
+    // Execute all queries in parallel for maximum speed
+    const [topic, prosOpinions, consOpinions, relatedTopics] = await withTimeout(Promise.all([
+        // 1. Fetch Topic metadata
+        prisma.topic.findUnique({
+            where: { id: params.id },
+            include: {
+                _count: {
+                    select: { opinions: true }
+                }
+            }
+        }),
+        // 2. Fetch top 10 Pros
+        prisma.opinion.findMany({
+            where: {
+                topicId: params.id,
+                side: 'PROS',
+                parentId: null
+            },
+            take: 10,
+            orderBy: [{ likes_count: 'desc' }, { createdAt: 'desc' }],
+            include: {
+                user: true,
+                ...(currentUserId ? { likes: { where: { userId: currentUserId } } } : {}),
+                _count: {
+                    select: {
+                        replies: true
                     }
                 }
-            }),
-            // 2. Fetch top 10 Pros
-            prisma.opinion.findMany({
-                where: {
-                    topicId: params.id,
-                    side: 'PROS',
-                    parentId: null
-                },
-                take: 10,
-                orderBy: [{ likes_count: 'desc' }, { createdAt: 'desc' }],
-                include: {
-                    user: true,
-                    ...(currentUserId ? { likes: { where: { userId: currentUserId } } } : {}),
-                    _count: {
-                        select: {
-                            replies: true
-                        }
+            }
+        }),
+        // 3. Fetch top 10 Cons
+        prisma.opinion.findMany({
+            where: {
+                topicId: params.id,
+                side: 'CONS',
+                parentId: null
+            },
+            take: 10,
+            orderBy: [{ likes_count: 'desc' }, { createdAt: 'desc' }],
+            include: {
+                user: true,
+                ...(currentUserId ? { likes: { where: { userId: currentUserId } } } : {}),
+                _count: {
+                    select: {
+                        replies: true
                     }
                 }
-            }),
-            // 3. Fetch top 10 Cons
-            prisma.opinion.findMany({
-                where: {
-                    topicId: params.id,
-                    side: 'CONS',
-                    parentId: null
-                },
-                take: 10,
-                orderBy: [{ likes_count: 'desc' }, { createdAt: 'desc' }],
-                include: {
-                    user: true,
-                    ...(currentUserId ? { likes: { where: { userId: currentUserId } } } : {}),
-                    _count: {
-                        select: {
-                            replies: true
-                        }
-                    }
-                }
-            }),
-            // 4. Fetch related topics
-            prisma.topic.findMany({
-                where: { NOT: { id: params.id } },
-                take: 4,
-                orderBy: { createdAt: 'desc' },
-                select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
-            })
-        ]));
+            }
+        }),
+        // 4. Fetch related topics
+        prisma.topic.findMany({
+            where: { NOT: { id: params.id } },
+            take: 4,
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
+        })
+    ]));
 
-        if (!topic) {
-            console.timeEnd(`TopicQuery-${params.id}`);
-            return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
-        }
-
+    if (!topic) {
         console.timeEnd(`TopicQuery-${params.id}`);
-        console.log(`[TopicDetail] Queries completed successfully for ${params.id}`);
-
-        return (
-            <div className="container">
-                <div className="detail-header">
-                    <h1 className="topic-title">{topic.title}</h1>
-                    <p style={{ color: '#94a3b8', fontSize: '1.2rem', maxWidth: '800px', margin: '0 auto', marginBottom: '1.5rem' }}>
-                        {topic.description}
-                    </p>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-                        <ShareButton />
-                    </div>
-                </div>
-
-                {topic.thumbnail && (
-                    <img src={topic.thumbnail} alt={topic.title} className="detail-img" />
-                )}
-
-                <AdSense adSlot="9876543210" />
-
-                <DebateClient topic={topic as any} />
-
-                <div className="split-layout">
-                    <div className="split-col">
-                        <div className="col-header header-pros">
-                            {topic.pros_label} 의견 ({topic.pros_count})
-                        </div>
-                        {prosOpinions.map((op: any) => (
-                            <OpinionCard
-                                key={op.id}
-                                opinion={op}
-                                initialIsLiked={op.likes && op.likes.length > 0}
-                                borderColorClass="border-pros"
-                                topicId={params.id}
-                                isReply={false}
-                                currentUserId={currentUserId}
-                                isAdmin={isAdmin}
-                            />
-                        ))}
-                    </div>
-
-                    <div className="split-col">
-                        <div className="col-header header-cons">
-                            {topic.cons_label} 의견 ({topic.cons_count})
-                        </div>
-                        {consOpinions.map((op: any) => (
-                            <OpinionCard
-                                key={op.id}
-                                opinion={op}
-                                initialIsLiked={op.likes && op.likes.length > 0}
-                                borderColorClass="border-cons"
-                                topicId={params.id}
-                                isReply={false}
-                                currentUserId={currentUserId}
-                                isAdmin={isAdmin}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {relatedTopics.length > 0 && (
-                    <div style={{ marginTop: '5rem' }}>
-                        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>다른 뜨거운 감자 보기</h2>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                            gap: '1.5rem'
-                        }}>
-                            {relatedTopics.map(rel => (
-                                <Link key={rel.id} href={`/topics/${rel.id}`} className="card" style={{ textDecoration: 'none', color: 'inherit', padding: '1rem' }}>
-                                    {rel.thumbnail && (
-                                        <img src={rel.thumbnail} alt={rel.title} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', marginBottom: '0.8rem' }} />
-                                    )}
-                                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>{rel.title}</h3>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>참여 {rel.pros_count + rel.cons_count}명</span>
-                                </Link>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    } catch (error) {
-        console.error("[TopicDetail] Error loading page:", error);
-        return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>;
+        // Throw 404 error or return 404 UI
+        return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
     }
+
+    console.timeEnd(`TopicQuery-${params.id}`);
+    console.log(`[TopicDetail] Queries completed successfully for ${params.id}`);
+
+    return (
+        <div className="container">
+            <div className="detail-header">
+                <h1 className="topic-title">{topic.title}</h1>
+                <p style={{ color: '#94a3b8', fontSize: '1.2rem', maxWidth: '800px', margin: '0 auto', marginBottom: '1.5rem' }}>
+                    {topic.description}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+                    <ShareButton />
+                </div>
+            </div>
+
+            {topic.thumbnail && (
+                <img src={topic.thumbnail} alt={topic.title} className="detail-img" />
+            )}
+
+            <AdSense adSlot="9876543210" />
+
+            <DebateClient topic={topic as any} />
+
+            <div className="split-layout">
+                <div className="split-col">
+                    <div className="col-header header-pros">
+                        {topic.pros_label} 의견 ({topic.pros_count})
+                    </div>
+                    {prosOpinions.map((op: any) => (
+                        <OpinionCard
+                            key={op.id}
+                            opinion={op}
+                            initialIsLiked={op.likes && op.likes.length > 0}
+                            borderColorClass="border-pros"
+                            topicId={params.id}
+                            isReply={false}
+                            currentUserId={currentUserId}
+                            isAdmin={isAdmin}
+                        />
+                    ))}
+                </div>
+
+                <div className="split-col">
+                    <div className="col-header header-cons">
+                        {topic.cons_label} 의견 ({topic.cons_count})
+                    </div>
+                    {consOpinions.map((op: any) => (
+                        <OpinionCard
+                            key={op.id}
+                            opinion={op}
+                            initialIsLiked={op.likes && op.likes.length > 0}
+                            borderColorClass="border-cons"
+                            topicId={params.id}
+                            isReply={false}
+                            currentUserId={currentUserId}
+                            isAdmin={isAdmin}
+                        />
+                    ))}
+                </div>
+            </div>
+
+            {relatedTopics.length > 0 && (
+                <div style={{ marginTop: '5rem' }}>
+                    <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>다른 뜨거운 감자 보기</h2>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                        gap: '1.5rem'
+                    }}>
+                        {relatedTopics.map(rel => (
+                            <Link key={rel.id} href={`/topics/${rel.id}`} className="card" style={{ textDecoration: 'none', color: 'inherit', padding: '1rem' }}>
+                                {rel.thumbnail && (
+                                    <img src={rel.thumbnail} alt={rel.title} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', marginBottom: '0.8rem' }} />
+                                )}
+                                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>{rel.title}</h3>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>참여 {rel.pros_count + rel.cons_count}명</span>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
