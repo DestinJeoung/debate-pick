@@ -10,20 +10,32 @@ export default function AIBotControl({ topicId }: { topicId?: string }) {
     const handleSeed = async () => {
         setLoading(true);
         setMessage('봇 생성 중...');
-        const res = await seedBots();
-        setLoading(false);
-        setMessage(res.error || res.message || '');
+        try {
+            const res = await seedBots();
+            setMessage(res.error || res.message || '');
+        } catch (err) {
+            console.error(err);
+            setMessage('봇 생성 과정에서 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleGenerate = async (side: 'PROS' | 'CONS') => {
         if (!topicId) return;
         setLoading(true);
         setMessage('AI 의견 생성 중...');
-        const res = await generateAIOpinions(topicId, side, 3);
-        setLoading(false);
-        setMessage(res.error || res.message || '');
-        if (res.success) {
-            setTimeout(() => setMessage(''), 3000);
+        try {
+            const res = await generateAIOpinions(topicId, side, 3);
+            setMessage(res.error || res.message || '');
+            if (res.success) {
+                setTimeout(() => setMessage(''), 5000);
+            }
+        } catch (err) {
+            console.error(err);
+            setMessage('AI와 통신 중 오류가 발생했습니다. (잠시 후 다시 시도해 주세요)');
+        } finally {
+            setLoading(false);
         }
     };
 
