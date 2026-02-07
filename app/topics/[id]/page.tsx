@@ -45,6 +45,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
+        console.time(`[TopicDetail] Fetch Topic Metadata ${params.id}`);
         // 1. Fetch Topic metadata ONLY (Lightweight)
         const topic = await prisma.topic.findUnique({
             where: { id: params.id },
@@ -54,11 +55,13 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                 }
             }
         });
+        console.timeEnd(`[TopicDetail] Fetch Topic Metadata ${params.id}`);
 
         if (!topic) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
         }
 
+        console.time(`[TopicDetail] Fetch Pros Opinions ${params.id}`);
         // 2. Fetch specific opinions separately (Avoid massive JOINs)
         // Fetch top 10 Pros
         const prosOpinions = await prisma.opinion.findMany({
@@ -81,7 +84,9 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                 }
             }
         });
+        console.timeEnd(`[TopicDetail] Fetch Pros Opinions ${params.id}`);
 
+        console.time(`[TopicDetail] Fetch Cons Opinions ${params.id}`);
         // Fetch top 10 Cons
         const consOpinions = await prisma.opinion.findMany({
             where: {
@@ -103,7 +108,9 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                 }
             }
         });
+        console.timeEnd(`[TopicDetail] Fetch Cons Opinions ${params.id}`);
 
+        console.time(`[TopicDetail] Fetch Related Topics ${params.id}`);
         // 3. Fetch related topics (Optional, can fail)
         const relatedTopics = await prisma.topic.findMany({
             where: { NOT: { id: params.id } },
@@ -111,6 +118,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
             orderBy: { createdAt: 'desc' },
             select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
         });
+        console.timeEnd(`[TopicDetail] Fetch Related Topics ${params.id}`);
 
         return (
             <div className="container">
