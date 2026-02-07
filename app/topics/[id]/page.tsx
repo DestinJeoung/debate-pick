@@ -9,8 +9,7 @@ import { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
-// Helper for timeout
-const withTimeout = <T,>(promise: Promise<T>, ms: number = 15000): Promise<T> => {
+const withTimeout = <T,>(promise: Promise<T>, ms: number = 9000): Promise<T> => {
     return Promise.race([
         promise,
         new Promise<T>((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), ms))
@@ -52,72 +51,67 @@ export default async function TopicDetail({ params }: { params: { id: string } }
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
-        // 1. Fetch Topic metadata ONLY (Lightweight)
-        const topic = await withTimeout(prisma.topic.findUnique({
-            where: { id: params.id },
-            include: {
-                _count: {
-                    select: { opinions: true }
+        // Execute all queries in parallel for maximum speed
+        const [topic, prosOpinions, consOpinions, relatedTopics] = await withTimeout(Promise.all([
+            // 1. Fetch Topic metadata
+            prisma.topic.findUnique({
+                where: { id: params.id },
+                include: {
+                    _count: {
+                        select: { opinions: true }
+                    }
                 }
-            }
-        }));
+            }),
+            // 2. Fetch top 10 Pros
+            prisma.opinion.findMany({
+                where: {
+                    topicId: params.id,
+                    side: 'PROS',
+                    parentId: null
+                },
+                take: 10,
+                orderBy: [{ likes_count: 'desc' }, { createdAt: 'desc' }],
+                include: {
+                    user: true,
+                    ...(currentUserId ? { likes: { where: { userId: currentUserId } } } : {}),
+                    _count: {
+                        select: {
+                            replies: true
+                        }
+                    }
+                }
+            }),
+            // 3. Fetch top 10 Cons
+            prisma.opinion.findMany({
+                where: {
+                    topicId: params.id,
+                    side: 'CONS',
+                    parentId: null
+                },
+                take: 10,
+                orderBy: [{ likes_count: 'desc' }, { createdAt: 'desc' }],
+                include: {
+                    user: true,
+                    ...(currentUserId ? { likes: { where: { userId: currentUserId } } } : {}),
+                    _count: {
+                        select: {
+                            replies: true
+                        }
+                    }
+                }
+            }),
+            // 4. Fetch related topics
+            prisma.topic.findMany({
+                where: { NOT: { id: params.id } },
+                take: 4,
+                orderBy: { createdAt: 'desc' },
+                select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
+            })
+        ]));
 
         if (!topic) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
         }
-
-        // 2. Fetch specific opinions separately (Avoid massive JOINs)
-        // Fetch top 10 Pros
-        const prosOpinions = await withTimeout(prisma.opinion.findMany({
-            where: {
-                topicId: params.id,
-                side: 'PROS',
-                // @ts-ignore
-                parentId: null
-            },
-            take: 10,
-            orderBy: [{ likes_count: 'desc' }, { createdAt: 'desc' }],
-            include: {
-                user: true,
-                ...(currentUserId ? { likes: { where: { userId: currentUserId } } } : {}),
-                _count: {
-                    select: {
-                        // @ts-ignore
-                        replies: true
-                    }
-                }
-            }
-        }));
-
-        // Fetch top 10 Cons
-        const consOpinions = await withTimeout(prisma.opinion.findMany({
-            where: {
-                topicId: params.id,
-                side: 'CONS',
-                // @ts-ignore
-                parentId: null
-            },
-            take: 10,
-            orderBy: [{ likes_count: 'desc' }, { createdAt: 'desc' }],
-            include: {
-                user: true,
-                ...(currentUserId ? { likes: { where: { userId: currentUserId } } } : {}),
-                _count: {
-                    select: {
-                        // @ts-ignore
-                        replies: true
-                    }
-                }
-            }
-        }));
-
-        // 3. Fetch related topics (Optional, can fail)
-        const relatedTopics = await withTimeout(prisma.topic.findMany({
-            where: { NOT: { id: params.id } },
-            take: 4,
-            orderBy: { createdAt: 'desc' },
-            select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
-        }));
 
         return (
             <div className="container">
