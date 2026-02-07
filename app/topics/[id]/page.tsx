@@ -10,31 +10,56 @@ import Script from 'next/script';
 
 export const dynamic = 'force-dynamic';
 
-// SEO Optimization: Dynamic Metadata
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-    try {
-        const topic = await prisma.topic.findUnique({
-            where: { id: params.id },
-            select: { title: true, description: true }
-        });
+import { cache } from 'react';
 
-        if (!topic) return { title: '주제를 찾을 수 없습니다 | Debate Pick' };
-
-        return {
-            title: `${topic.title} | Debate Pick`,
-            description: topic.description?.substring(0, 160) || '실시간 토론에 참여하세요.',
-            openGraph: {
-                title: topic.title,
-                description: topic.description?.substring(0, 160),
-                type: 'article',
+// Deduplicate DB calls between generateMetadata and TopicDetail
+const getTopicData = cache(async (id: string, currentUserId?: string) => {
+    return await prisma.topic.findUnique({
+        where: { id },
+        include: {
+            opinions: {
+                // @ts-ignore
+                where: { parentId: null },
+                orderBy: [
+                    { likes_count: 'desc' },
+                    { createdAt: 'desc' }
+                ],
+                take: 20, // Limit initial load
+                include: {
+                    user: true,
+                    ...(currentUserId ? {
+                        likes: { where: { userId: currentUserId } }
+                    } : {}),
+                    // @ts-ignore
+                    replies: {
+                        orderBy: { createdAt: 'asc' },
+                        take: 5, // Limit replies
+                        include: {
+                            user: true,
+                            ...(currentUserId ? {
+                                likes: { where: { userId: currentUserId } }
+                            } : {}),
+                        }
+                    }
+                }
             }
-        };
-    } catch (e) {
-        return {
-            title: `토론 상세 | Debate Pick`,
-            description: '실시간 토론에 참여하세요.',
-        };
-    }
+        }
+    });
+});
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+    const topic = await getTopicData(params.id);
+    if (!topic) return { title: '주제를 찾을 수 없습니다 | Debate Pick' };
+
+    return {
+        title: `${topic.title} | Debate Pick`,
+        description: topic.description?.substring(0, 160) || '실시간 토론에 참여하세요.',
+        openGraph: {
+            title: topic.title,
+            description: topic.description?.substring(0, 160),
+            type: 'article',
+        }
+    };
 }
 
 export default async function TopicDetail({ params }: { params: { id: string } }) {
@@ -45,47 +70,19 @@ export default async function TopicDetail({ params }: { params: { id: string } }
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
-        // Fetch everything in parallel
-        const [topic, relatedTopics] = await Promise.all([
-            prisma.topic.findUnique({
-                where: { id: params.id },
-                include: {
-                    opinions: {
-                        // @ts-ignore
-                        where: { parentId: null },
-                        orderBy: [
-                            { likes_count: 'desc' },
-                            { createdAt: 'desc' }
-                        ],
-                        include: {
-                            user: true,
-                            ...(currentUserId ? {
-                                likes: { where: { userId: currentUserId } }
-                            } : {}),
-                            // @ts-ignore
-                            replies: {
-                                orderBy: { createdAt: 'asc' },
-                                include: {
-                                    user: true,
-                                    ...(currentUserId ? {
-                                        likes: { where: { userId: currentUserId } }
-                                    } : {}),
-                                }
-                            }
-                        }
-                    }
-                }
-            }),
-            prisma.topic.findMany({
-                where: { NOT: { id: params.id } },
-                take: 4,
-                orderBy: { createdAt: 'desc' }
-            })
-        ]);
+        // Fetch sequential to avoid hitting connection limit in serverless
+        const topic = await getTopicData(params.id, currentUserId);
 
         if (!topic) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
         }
+
+        const relatedTopics = await prisma.topic.findMany({
+            where: { NOT: { id: params.id } },
+            take: 4,
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
+        });
 
         const opinions = (topic as any).opinions || [];
         const prosOpinions = opinions.filter((o: any) => o.side === 'PROS');
@@ -114,7 +111,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                 <div className="split-layout">
                     <div className="split-col">
                         <div className="col-header header-pros">
-                            {topic.pros_label} 의견 ({prosOpinions.length})
+                            {topic.pros_label} 의견 ({topic.pros_count})
                         </div>
                         {prosOpinions.map((op: any) => (
                             <OpinionCard
@@ -131,7 +128,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
 
                     <div className="split-col">
                         <div className="col-header header-cons">
-                            {topic.cons_label} 의견 ({consOpinions.length})
+                            {topic.cons_label} 의견 ({topic.cons_count})
                         </div>
                         {consOpinions.map((op: any) => (
                             <OpinionCard
