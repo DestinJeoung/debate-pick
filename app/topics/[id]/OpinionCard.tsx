@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { toggleLike } from './like-action';
 import { submitReply, editOpinion, deleteOpinion, toggleBlindOpinion } from './actions';
-import ReportModal from './ReportModal';
 // @ts-ignore
 import { useFormState, useFormStatus } from 'react-dom';
 
@@ -44,7 +43,6 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
     const [isEditing, setIsEditing] = useState(false);
     const [isBlinded, setIsBlinded] = useState(opinion.isBlinded);
     const [editContent, setEditContent] = useState(opinion.content);
-    const [showReportModal, setShowReportModal] = useState(false);
     const [replyState, replyAction] = useFormState(submitReply, { message: '' });
     const [editState, editAction] = useFormState(editOpinion, { message: '' });
 
@@ -103,15 +101,35 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                         <div style={{ display: 'flex', gap: '0.4rem' }}>
                             <button
                                 onClick={handleBlind}
-                                style={{ background: '#475569', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.4rem', borderRadius: '4px' }}
+                                title={isBlinded ? '숨김 해제' : '블라인드 처리'}
+                                style={{
+                                    background: isBlinded ? '#334155' : '#475569',
+                                    border: 'none',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    padding: '0.3rem 0.6rem',
+                                    borderRadius: '6px',
+                                    transition: 'all 0.2s'
+                                }}
                             >
-                                {isBlinded ? '해제' : '숨김'}
+                                {isBlinded ? '🔓 해제' : '👁️ 숨김'}
                             </button>
                             <button
                                 onClick={handleDelete}
-                                style={{ background: '#ef4444', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.4rem', borderRadius: '4px' }}
+                                title="완전 삭제"
+                                style={{
+                                    background: '#7f1d1d',
+                                    border: 'none',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    padding: '0.3rem 0.6rem',
+                                    borderRadius: '6px',
+                                    transition: 'all 0.2s'
+                                }}
                             >
-                                삭제
+                                🗑️ 삭제
                             </button>
                         </div>
                     )}
@@ -129,15 +147,6 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem' }}
                         >
                             답글
-                        </button>
-                    )}
-                    {!isAuthor && !isBlinded && currentUserId && (
-                        <button
-                            onClick={() => setShowReportModal(true)}
-                            title="신고"
-                            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.9rem' }}
-                        >
-                            🚨
                         </button>
                     )}
                     <button
@@ -227,12 +236,6 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                     ))}
                 </div>
             )}
-
-            <ReportModal
-                opinionId={opinion.id}
-                isOpen={showReportModal}
-                onClose={() => setShowReportModal(false)}
-            />
         </div>
     );
 }

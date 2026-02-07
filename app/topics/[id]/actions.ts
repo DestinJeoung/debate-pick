@@ -3,7 +3,6 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/session';
-import { createNotification } from '@/lib/notification-actions';
 
 export async function submitOpinion(prevState: any, formData: FormData) {
     const topicId = formData.get('topicId') as string;
@@ -97,16 +96,6 @@ export async function submitReply(prevState: any, formData: FormData) {
                 parentId,
             },
         });
-
-        // Send notification to parent opinion author (if not self)
-        if (parent.userId !== userId) {
-            await createNotification(
-                parent.userId,
-                'REPLY',
-                `${session.nickname}님이 회원님의 의견에 답글을 남겼습니다.`,
-                `/topics/${topicId}`
-            );
-        }
 
         revalidatePath(`/topics/${topicId}`);
         return { message: 'Success' };

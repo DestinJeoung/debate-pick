@@ -3,7 +3,6 @@
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
-import { createNotification } from '@/lib/notification-actions';
 
 export async function toggleLike(opinionId: string) {
     const session = await getSession();
@@ -22,12 +21,6 @@ export async function toggleLike(opinionId: string) {
                     opinionId,
                 },
             },
-        });
-
-        // Get opinion details for notification
-        const opinion = await prisma.opinion.findUnique({
-            where: { id: opinionId },
-            select: { userId: true, topicId: true }
         });
 
         if (existingLike) {
@@ -62,17 +55,6 @@ export async function toggleLike(opinionId: string) {
                     data: { likes_count: { increment: 1 } },
                 }),
             ]);
-
-            // Send notification to opinion author (if not self)
-            if (opinion && opinion.userId !== userId) {
-                await createNotification(
-                    opinion.userId,
-                    'LIKE',
-                    `${session.nickname}님이 회원님의 의견에 좋아요를 눌렀습니다.`,
-                    `/topics/${opinion.topicId}`
-                );
-            }
-
             revalidatePath('/');
             return { message: 'Liked', success: true, liked: true };
         }
