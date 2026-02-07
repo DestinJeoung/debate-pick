@@ -142,3 +142,63 @@ export async function editOpinion(prevState: any, formData: FormData) {
         return { message: 'Database Error' };
     }
 }
+
+export async function deleteOpinion(topicId: string, opinionId: string) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+        return { success: false, message: '권한이 없습니다.' };
+    }
+
+    try {
+        const opinion = await prisma.opinion.findUnique({
+            where: { id: opinionId },
+            select: { side: true }
+        });
+
+        if (!opinion) return { success: false, message: '의견을 찾을 수 없습니다.' };
+
+        await prisma.$transaction([
+            prisma.opinion.delete({ where: { id: opinionId } }),
+            prisma.topic.update({
+                where: { id: topicId },
+                data: {
+                    pros_count: opinion.side === 'PROS' ? { decrement: 1 } : undefined,
+                    cons_count: opinion.side === 'CONS' ? { decrement: 1 } : undefined,
+                }
+            })
+        ]);
+
+        revalidatePath(`/topics/${topicId}`);
+        return { success: true };
+    } catch (e) {
+        console.error(e);
+        return { success: false, message: '삭제 중 오류가 발생했습니다.' };
+    }
+}
+
+export async function toggleBlindOpinion(topicId: string, opinionId: string) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+        return { success: false, message: '권한이 없습니다.' };
+    }
+
+    try {
+        const opinion = await prisma.opinion.findUnique({
+            where: { id: opinionId },
+            select: { isBlinded: true }
+        });
+
+        if (!opinion) return { success: false, message: '의견을 찾을 수 없습니다.' };
+
+        await prisma.opinion.update({
+            where: { id: opinionId },
+            data: { isBlinded: !opinion.isBlinded }
+        });
+
+        revalidatePath(`/topics/${topicId}`);
+        return { success: true, isBlinded: !opinion.isBlinded };
+    } catch (e) {
+        console.error(e);
+        return { success: false, message: '처리 중 오류가 발생했습니다.' };
+    }
+}

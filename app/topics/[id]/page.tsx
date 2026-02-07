@@ -26,6 +26,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
     try {
         const session = await getSession();
         const currentUserId = session?.userId;
+        const isAdmin = session?.role === 'ADMIN';
 
         // Fetch everything in parallel
         const [topic, relatedTopics] = await Promise.all([
@@ -106,6 +107,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                                 borderColorClass="border-pros"
                                 topicId={params.id}
                                 currentUserId={currentUserId}
+                                isAdmin={isAdmin}
                             />
                         ))}
                     </div>
@@ -122,6 +124,7 @@ export default async function TopicDetail({ params }: { params: { id: string } }
                                 borderColorClass="border-cons"
                                 topicId={params.id}
                                 currentUserId={currentUserId}
+                                isAdmin={isAdmin}
                             />
                         ))}
                     </div>

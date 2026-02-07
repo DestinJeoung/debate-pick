@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toggleLike } from './like-action';
-import { submitReply, editOpinion } from './actions';
+import { submitReply, editOpinion, deleteOpinion, toggleBlindOpinion } from './actions';
 // @ts-ignore
 import { useFormState, useFormStatus } from 'react-dom';
 
@@ -15,6 +15,7 @@ type OpinionCardProps = {
         user: { nickname: string };
         replies?: any[];
         isEdited: boolean;
+        isBlinded: boolean;
         createdAt: Date;
     };
     initialIsLiked: boolean;
@@ -22,6 +23,7 @@ type OpinionCardProps = {
     topicId: string;
     isReply?: boolean;
     currentUserId?: string;
+    isAdmin?: boolean;
 };
 
 function OptionSubmitButton({ label = '등록' }: { label?: string }) {
@@ -33,12 +35,13 @@ function OptionSubmitButton({ label = '등록' }: { label?: string }) {
     );
 }
 
-export default function OpinionCard({ opinion, initialIsLiked, borderColorClass, topicId, isReply = false, currentUserId }: OpinionCardProps) {
+export default function OpinionCard({ opinion, initialIsLiked, borderColorClass, topicId, isReply = false, currentUserId, isAdmin = false }: OpinionCardProps) {
     const [likes, setLikes] = useState(opinion.likes_count);
     const [isLiked, setIsLiked] = useState(initialIsLiked);
     const [isPending, setIsPending] = useState(false);
     const [showReplyForm, setShowReplyForm] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [isBlinded, setIsBlinded] = useState(opinion.isBlinded);
     const [editContent, setEditContent] = useState(opinion.content);
     const [replyState, replyAction] = useFormState(submitReply, { message: '' });
     const [editState, editAction] = useFormState(editOpinion, { message: '' });
@@ -64,21 +67,53 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
         setIsPending(false);
     };
 
+    const handleBlind = async () => {
+        const res = await toggleBlindOpinion(topicId, opinion.id);
+        if (res.success) {
+            setIsBlinded(res.isBlinded || false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며 투표 수에도 영향을 미칩니다.')) {
+            const res = await deleteOpinion(topicId, opinion.id);
+            if (!res.success) alert(res.message);
+        }
+    };
+
     return (
         <div className={`opinion-card ${borderColorClass}`} style={{
             position: 'relative',
             marginLeft: isReply ? '1.5rem' : '0',
             marginTop: isReply ? '0.5rem' : '1rem',
             background: isReply ? '#1e293b' : undefined,
-            fontSize: isReply ? '0.9rem' : '1rem'
+            fontSize: isReply ? '0.9rem' : '1rem',
+            opacity: isBlinded && !isAdmin ? 0.6 : 1
         }}>
             <div className="opinion-author">
                 <span style={{ fontWeight: isReply ? 'normal' : 'bold' }}>
                     {opinion.user.nickname}
                     {isEdited && <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '0.4rem' }}>(수정됨)</span>}
+                    {isBlinded && <span style={{ fontSize: '0.7rem', color: '#ef4444', marginLeft: '0.4rem' }}>(블라인드)</span>}
                 </span>
                 <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-                    {isAuthor && !isEditing && (
+                    {isAdmin && (
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <button
+                                onClick={handleBlind}
+                                style={{ background: '#475569', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.4rem', borderRadius: '4px' }}
+                            >
+                                {isBlinded ? '해제' : '숨김'}
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                style={{ background: '#ef4444', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.4rem', borderRadius: '4px' }}
+                            >
+                                삭제
+                            </button>
+                        </div>
+                    )}
+                    {isAuthor && !isEditing && !isBlinded && (
                         <button
                             onClick={() => setIsEditing(true)}
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem' }}
@@ -86,7 +121,7 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                             수정
                         </button>
                     )}
-                    {!isReply && !isEditing && (
+                    {!isReply && !isEditing && !isBlinded && (
                         <button
                             onClick={() => setShowReplyForm(!showReplyForm)}
                             style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem' }}
@@ -96,11 +131,11 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                     )}
                     <button
                         onClick={handleLike}
-                        disabled={isPending}
+                        disabled={isPending || (isBlinded && !isAdmin)}
                         style={{
                             background: 'none',
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: (isBlinded && !isAdmin) ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.3rem',
@@ -136,7 +171,9 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                     </form>
                 </div>
             ) : (
-                <p style={{ margin: '0.5rem 0' }}>{opinion.content}</p>
+                <p style={{ margin: '0.5rem 0', color: isBlinded && !isAdmin ? '#64748b' : 'inherit', fontStyle: isBlinded && !isAdmin ? 'italic' : 'normal' }}>
+                    {isBlinded && !isAdmin ? '관리자에 의해 블라인드 처리된 의견입니다.' : opinion.content}
+                </p>
             )}
 
             {/* Reply Form */}
@@ -174,6 +211,7 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
                             topicId={topicId}
                             isReply={true}
                             currentUserId={currentUserId}
+                            isAdmin={isAdmin}
                         />
                     ))}
                 </div>

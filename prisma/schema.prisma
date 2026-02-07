@@ -62,6 +62,7 @@ model Opinion {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @default(now()) @updatedAt
   isEdited    Boolean   @default(false)
+  isBlinded   Boolean   @default(false)
   parentId    String?
   parent      Opinion? @relation("OpinionReplies", fields: [parentId], references: [id])
   replies     Opinion[] @relation("OpinionReplies")
