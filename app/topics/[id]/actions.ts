@@ -129,7 +129,10 @@ export async function editOpinion(prevState: any, formData: FormData) {
 
         await prisma.opinion.update({
             where: { id: opinionId },
-            data: { content },
+            data: {
+                content,
+                isEdited: true
+            },
         });
 
         revalidatePath(`/topics/${topicId}`);

@@ -113,6 +113,7 @@ export default async function MyPage() {
                                         }}>
                                             {opinion.side === 'PROS' ? opinion.topic.pros_label : opinion.topic.cons_label}
                                         </span>
+                                        {(opinion as any).isEdited && <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '0.4rem' }}>(수정됨)</span>}
                                     </div>
                                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                                         {new Date(opinion.createdAt).toLocaleDateString()}

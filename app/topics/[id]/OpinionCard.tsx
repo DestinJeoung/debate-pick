@@ -14,7 +14,7 @@ type OpinionCardProps = {
         likes_count: number;
         user: { nickname: string };
         replies?: any[];
-        updatedAt: Date;
+        isEdited: boolean;
         createdAt: Date;
     };
     initialIsLiked: boolean;
@@ -44,7 +44,7 @@ export default function OpinionCard({ opinion, initialIsLiked, borderColorClass,
     const [editState, editAction] = useFormState(editOpinion, { message: '' });
 
     const isAuthor = currentUserId === opinion.userId;
-    const isEdited = new Date(opinion.updatedAt).getTime() > new Date(opinion.createdAt).getTime() + 1000; // 1s buffer
+    const isEdited = opinion.isEdited;
 
     const handleLike = async () => {
         if (isPending) return;
