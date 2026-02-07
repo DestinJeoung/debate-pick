@@ -13,15 +13,22 @@ export const dynamic = 'force-dynamic';
 
 // Optimization: Parallel fetching and simplified structure
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-    const topic = await prisma.topic.findUnique({
-        where: { id: params.id },
-        select: { title: true, description: true }
-    });
+    try {
+        const topic = await prisma.topic.findUnique({
+            where: { id: params.id },
+            select: { title: true, description: true }
+        });
 
-    return {
-        title: `${topic?.title || '토론'} | Debate Pick`,
-        description: topic?.description?.substring(0, 160) || '실시간 토론에 참여하세요.',
-    };
+        if (!topic) return { title: '주제를 찾을 수 없습니다' };
+
+        return {
+            title: `${topic.title} | Debate Pick`,
+            description: topic.description?.substring(0, 160) || '실시간 토론에 참여하세요.',
+        };
+    } catch (e) {
+        console.error("[generateMetadata] Error:", e);
+        return { title: '토론 상세 | Debate Pick' };
+    }
 }
 
 export default async function TopicDetail({ params, searchParams }: { params: { id: string }, searchParams: { sort?: string } }) {
@@ -46,6 +53,7 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
+        console.time(`[TopicDetail] DB Fetch: ${params.id}`);
         // Fetch everything in parallel
         const [topic, relatedTopics] = await Promise.all([
             prisma.topic.findUnique({
@@ -81,6 +89,7 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
                 orderBy: { createdAt: 'desc' }
             })
         ]);
+        console.timeEnd(`[TopicDetail] DB Fetch: ${params.id}`);
 
         if (!topic) {
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;

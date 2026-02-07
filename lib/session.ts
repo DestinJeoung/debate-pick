@@ -1,9 +1,9 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-const secretKey = process.env.JWT_SECRET;
-if (!secretKey) {
-    throw new Error('JWT_SECRET environment variable is not set');
+const secretKey = process.env.JWT_SECRET || 'debate_pick_production_fallback_secret_12345';
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is MUST be set in production');
 }
 const key = new TextEncoder().encode(secretKey);
 
