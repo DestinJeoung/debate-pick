@@ -9,20 +9,22 @@ import { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
-const withTimeout = <T,>(promise: Promise<T>, ms: number = 9000): Promise<T> => {
+const withTimeout = <T,>(promise: Promise<T>, ms: number = 5000): Promise<T> => {
     return Promise.race([
         promise,
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), ms))
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`DB_TIMEOUT_${ms}ms`)), ms))
     ]);
 };
 
 // Extreme Optimization: Splitting queries to prevent connection timeout
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+    console.time(`MetadataQuery-${params.id}`);
     try {
         const topic = await withTimeout(prisma.topic.findUnique({
             where: { id: params.id },
             select: { title: true, description: true }
         }));
+        console.timeEnd(`MetadataQuery-${params.id}`);
 
         if (!topic) return { title: '주제를 찾을 수 없습니다 | Debate Pick' };
 
@@ -45,6 +47,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function TopicDetail({ params }: { params: { id: string } }) {
     console.log(`[TopicDetail] Loading topic: ${params.id}`);
+    console.time(`TopicQuery-${params.id}`);
 
     try {
         const session = await getSession();
@@ -110,8 +113,12 @@ export default async function TopicDetail({ params }: { params: { id: string } }
         ]));
 
         if (!topic) {
+            console.timeEnd(`TopicQuery-${params.id}`);
             return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
         }
+
+        console.timeEnd(`TopicQuery-${params.id}`);
+        console.log(`[TopicDetail] Queries completed successfully for ${params.id}`);
 
         return (
             <div className="container">
