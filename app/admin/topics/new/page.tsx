@@ -66,17 +66,18 @@ export default function NewTopicPage() {
             translatedTitle = "social debate topic concept";
         }
 
-        // Unified API endpoint: gen.pollinations.ai/image/
-        const promptContext = `${translatedTitle} artistic thumbnail`;
-        const prompt = encodeURIComponent(promptContext);
+        // Primary generative AI endpoint (Pollinations)
+        // Extremely simple prompt for maximum compatibility
+        const cleanPrompt = translatedTitle.replace(/[^a-zA-Z0-9 ]/g, '');
+        const prompt = encodeURIComponent(cleanPrompt + " professional thumbnail");
 
-        // New unified endpoint structure
-        const generatedUrl = `https://gen.pollinations.ai/image/${prompt}?width=800&height=450&nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
+        // Finalized stable URL
+        const generatedUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=450&nologo=true&seed=${Math.floor(Math.random() * 99999)}`;
 
-        console.log("Unified AI Image URL:", generatedUrl);
+        console.log("Attempting AI Generation with URL:", generatedUrl);
 
-        // Simulate AI generation process with a delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Simulate AI generation process
+        await new Promise(resolve => setTimeout(resolve, 800));
 
         setThumbUrl(generatedUrl);
         setIsAiLoading(false);
@@ -84,7 +85,7 @@ export default function NewTopicPage() {
 
     return (
         <div className="container" style={{ maxWidth: '600px' }}>
-            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v4)</span></h1>
+            <h1 style={{ marginBottom: '2rem' }}>새 토론 주제 만들기 <span style={{ fontSize: '0.6rem', color: '#444' }}>(v5)</span></h1>
             <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem' }}>제목</label>
