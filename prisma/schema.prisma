@@ -59,6 +59,9 @@ model Opinion {
   content     String
   likes_count Int      @default(0)
   createdAt   DateTime @default(now())
+  parentId    String?
+  parent      Opinion? @relation("OpinionReplies", fields: [parentId], references: [id])
+  replies     Opinion[] @relation("OpinionReplies")
   
   topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)

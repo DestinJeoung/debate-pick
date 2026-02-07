@@ -61,3 +61,45 @@ export async function submitOpinion(prevState: any, formData: FormData) {
         return { message: 'Database Error' };
     }
 }
+export async function submitReply(prevState: any, formData: FormData) {
+    const topicId = formData.get('topicId') as string;
+    const parentId = formData.get('parentId') as string;
+    const content = formData.get('content') as string;
+
+    const session = await getSession();
+    if (!session) {
+        return { message: '로그인이 필요합니다.' };
+    }
+    const userId = session.userId;
+
+    if (!content || !topicId || !parentId) {
+        return { message: 'Missing fields' };
+    }
+
+    try {
+        // Fetch parent opinion to inherit the side (PROS or CONS)
+        const parent = await prisma.opinion.findUnique({
+            where: { id: parentId }
+        });
+
+        if (!parent) {
+            return { message: '부모 의견을 찾을 수 없습니다.' };
+        }
+
+        await prisma.opinion.create({
+            data: {
+                topicId,
+                userId,
+                side: parent.side,
+                content,
+                parentId,
+            },
+        });
+
+        revalidatePath(`/topics/${topicId}`);
+        return { message: 'Success' };
+    } catch (e) {
+        console.error(e);
+        return { message: 'Database Error' };
+    }
+}
