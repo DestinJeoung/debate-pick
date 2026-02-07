@@ -14,12 +14,13 @@ import { cache, Suspense } from 'react';
 export const dynamic = 'force-dynamic';
 
 /**
- * SUPER OPTIMIZED FETCH: 
- * Every DB call in a Serverless environment uses a precious connection.
- * We must fetch everything in one go or sequentially.
+ * EXTREME STABILITY FETCH:
+ * We split one big query into smaller ones to avoid complex joins
+ * that might hang the database connection pool.
  */
 const getFullPageData = cache(async (id: string, userId?: string, sort: string = 'popular') => {
-    console.log(`[getFullPageData] Start: ${id}`);
+    console.log(`[getFullPageData] 1. START for topic: ${id}`);
+
     const getOrderBy = () => {
         switch (sort) {
             case 'latest': return [{ createdAt: 'desc' as const }];
@@ -30,56 +31,69 @@ const getFullPageData = cache(async (id: string, userId?: string, sort: string =
     };
 
     try {
-        // Fetch topic and opinions in ONE query
+        // Step 1: Fetch topic basic data
+        console.log(`[getFullPageData] 2. Fetching topic basics...`);
         const topic = await prisma.topic.findUnique({
             where: { id },
+            select: {
+                id: true, title: true, description: true, thumbnail: true,
+                pros_label: true, cons_label: true,
+                pros_count: true, cons_count: true
+            }
+        });
+
+        if (!topic) {
+            console.log(`[getFullPageData] 2b. Topic NOT FOUND: ${id}`);
+            return null;
+        }
+
+        // Step 2: Fetch root opinions (excluding replies for now to speed up)
+        console.log(`[getFullPageData] 3. Fetching root opinions...`);
+        const opinions = await prisma.opinion.findMany({
+            // @ts-ignore
+            where: { topicId: id, parentId: null },
+            orderBy: getOrderBy() as any,
+            take: 21,
             include: {
-                opinions: {
-                    // @ts-ignore
-                    where: { parentId: null },
-                    orderBy: getOrderBy(),
-                    take: 21, // Fetch enough to show 10 per side + check hasMore
+                user: { select: { nickname: true } },
+                ...(userId ? {
+                    likes: { where: { userId: userId }, select: { id: true } }
+                } : {}),
+                // @ts-ignore
+                replies: {
+                    take: 2,
+                    orderBy: { createdAt: 'asc' },
                     include: {
-                        user: true,
+                        user: { select: { nickname: true } },
                         ...(userId ? {
-                            likes: { where: { userId } }
+                            likes: { where: { userId: userId }, select: { id: true } }
                         } : {}),
-                        // @ts-ignore
-                        replies: {
-                            take: 2, // Very low initial replies
-                            orderBy: { createdAt: 'asc' },
-                            include: {
-                                user: true,
-                                ...(userId ? {
-                                    likes: { where: { userId } }
-                                } : {}),
-                            }
-                        }
                     }
                 }
             }
         });
+        console.log(`[getFullPageData] 4. Opinions fetched: ${opinions.length}`);
 
-        if (!topic) return null;
-
-        // Fetch related topics SEQUENTIALLY
+        // Step 3: Fetch related topics
+        console.log(`[getFullPageData] 5. Fetching related topics...`);
         const related = await prisma.topic.findMany({
             where: { NOT: { id } },
             take: 4,
             orderBy: { createdAt: 'desc' },
             select: { id: true, title: true, thumbnail: true, pros_count: true, cons_count: true }
         });
+        console.log(`[getFullPageData] 6. FINISHED successfully`);
 
-        return { topic, related };
+        return { topic, opinions, related };
     } catch (e) {
-        console.error("[getFullPageData] Critical DB Error:", e);
-        throw e;
+        console.error("[getFullPageData] !!! CRITICAL DB ERROR:", e);
+        return null; // Return null so the UI can show a friendly error instead of hanging
     }
 });
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
     try {
-        // Using a simpler query for metadata to avoid pool issues
+        // Minimal fetch for metadata
         const topic = await prisma.topic.findUnique({
             where: { id: params.id },
             select: { title: true, description: true }
@@ -102,16 +116,20 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
         const data = await getFullPageData(params.id, session?.userId, sort);
 
         if (!data) {
-            return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
+            return (
+                <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>
+                    <h2>⚠️ 데이터를 불러올 수 없습니다.</h2>
+                    <p style={{ color: '#94a3b8', marginTop: '1rem' }}>데이터베이스 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.</p>
+                </div>
+            );
         }
 
-        const { topic, related } = data;
+        const { topic, opinions, related } = data;
         const currentUserId = session?.userId;
         const isAdmin = session?.role === 'ADMIN';
 
-        const opinions = (topic as any).opinions || [];
-        const prosOpinions = opinions.filter((o: any) => o.side === 'PROS');
-        const consOpinions = opinions.filter((o: any) => o.side === 'CONS');
+        const prosOpinions = (opinions as any[]).filter(o => o.side === 'PROS');
+        const consOpinions = (opinions as any[]).filter(o => o.side === 'CONS');
 
         const prosToDisplay = prosOpinions.slice(0, 10);
         const consToDisplay = consOpinions.slice(0, 10);
@@ -222,7 +240,7 @@ export default async function TopicDetail({ params, searchParams }: { params: { 
             </div>
         );
     } catch (error) {
-        console.error("[TopicDetail] Error rendering page:", error);
-        return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>;
+        console.error("[TopicDetail] CRITICAL RENDER ERROR:", error);
+        return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>데이터를 불러오는 중 오류가 발생했습니다.</div>;
     }
 }
