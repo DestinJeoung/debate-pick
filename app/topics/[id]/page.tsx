@@ -18,13 +18,11 @@ const withTimeout = <T,>(promise: Promise<T>, ms: number = 15000): Promise<T> =>
 
 // Extreme Optimization: Splitting queries to prevent connection timeout
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-    console.time(`MetadataQuery-${params.id}`);
     try {
         const topic = await withTimeout(prisma.topic.findUnique({
             where: { id: params.id },
             select: { title: true, description: true }
         }));
-        console.timeEnd(`MetadataQuery-${params.id}`);
 
         if (!topic) return { title: '주제를 찾을 수 없습니다 | Debate Pick' };
 
@@ -46,12 +44,6 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 export default async function TopicDetail({ params }: { params: { id: string } }) {
-    console.log(`[TopicDetail] Loading topic: ${params.id}`);
-    console.time(`TopicQuery-${params.id}`);
-
-    // try-catch removed to allow error.tsx to handle failures
-    // console.log(`[TopicDetail] Loading topic: ${params.id}`); // Logged at start
-
     const session = await getSession();
     const currentUserId = session?.userId;
     const isAdmin = session?.role === 'ADMIN';
@@ -115,13 +107,9 @@ export default async function TopicDetail({ params }: { params: { id: string } }
     ]));
 
     if (!topic) {
-        console.timeEnd(`TopicQuery-${params.id}`);
         // Throw 404 error or return 404 UI
         return <div className="container" style={{ padding: '5rem', textAlign: 'center' }}>주제를 찾을 수 없습니다.</div>;
     }
-
-    console.timeEnd(`TopicQuery-${params.id}`);
-    console.log(`[TopicDetail] Queries completed successfully for ${params.id}`);
 
     return (
         <div className="container">
